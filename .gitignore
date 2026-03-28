@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments and secrets
+.venv
+.env
+
+# DB
+*.sqlite
+*.sqlite3
+*.db
+
+# Local files/folders
+calendar_credentials*
+calendar_token*
+_local_*
+stt_models/
+media*
+models*
+logs*
+
+# сасhes
+.mypy_cache
+
+# VSCode
+.DS_Store
