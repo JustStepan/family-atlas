@@ -8,7 +8,7 @@ from src.logger import logger
 
 
 TG_API = f"https://api.telegram.org/bot{settings.BOT_TOKEN}"
-MSG_TYPES = ['voice', 'text', 'photo']
+MSG_TYPES = ["voice", "text", "photo"]
 
 THREAD_MAPS = {
     2: "diary",
@@ -33,58 +33,105 @@ async def fetch_updates(offset: int) -> list[dict]:
 async def collect_messages(msg: int = 0):
     """Забрать все накопленные обновления и вывести на печать."""
     updates = await fetch_updates(offset=msg)
-    logger.info(f'Было собрано {len(updates)} сообщений.')
+    logger.info(f"Было собрано {len(updates)} сообщений.")
 
     for update in updates:
-        msg = update['message']
+        # Печатаем полный выход из телеги
+        # pprint.pprint(update)
+        # print()
+        msg = update["message"]
 
         msg_type = [tp for tp in MSG_TYPES if tp in msg]
         if not msg_type:
-            logger.error(f'В сообщении нет нужных типов из {MSG_TYPES}')
+            logger.error(f"В сообщении нет нужных типов из {MSG_TYPES}")
             continue
 
-        if 'text' in msg_type:
-            final_dict = await handle_text_messages(msg)
-            # print(f'message is TEXT. and it contains\n{final_dict}')
+        # Печатаем только сообщение messages
+        # pprint.pprint(msg)
+        # print()
+
+        final_dict = await handle_message(msg)
+        final_dict.update({"msg_type": msg_type[0]})
+
+        # Печатаем то что сами распарсили
+        pprint.pprint(final_dict)
+        print()
 
 
-        print(f'message type is: {msg_type[0]} From {msg['from']['first_name']}')
-
-
-        # pprint.pprint(update)
-
-
-        # if "message" not in update:
-        #     continue
-
-        # msg = update["message"]
-        # thread_id = msg.get("message_thread_id")
-        # author = msg.get("from", {}).get("first_name", "Unknown")
-        # text = msg.get("text") or "(не текст)"
-
-        # print(f"thread={thread_id} | {author}: {text}")
-
-
-async def handle_text_messages(message: dict) -> dict:
-    author_id = message['from']['id']
-    author_username = message['from']['username']
-    author_name = settings.FAMILY_CHAT_IDS.get(author_id, '')
+async def handle_message(message: dict) -> dict:
+    # Получаем автора
+    author_id = message["from"]["id"]
+    author_username = message["from"]["username"]
+    author_name = settings.FAMILY_CHAT_IDS.get(author_id, "")
+    # Обрабатываем ошибку соответствия id автора в env
     if not author_name:
-        print('Необходимо проверить env файл и заполнить правильно FAMILY_CHAT_IDS')
-    message_thread = THREAD_MAPS.get(message['message_thread_id'], '')
+        logger.info(
+            "Необходимо проверить env файл и заполнить правильно FAMILY_CHAT_IDS"
+        )
+
+    # получаем message_thread - дневник, календарь и проч
+    # также делаем проверку на совместимость с THREAD_MAPS
+    message_thread = THREAD_MAPS.get(message["message_thread_id"], "")
     if not message_thread:
-        print('Необходимо проверить THREAD_MAPS на соответствие возвращаемому от телеграм')
-    date = datetime.fromtimestamp(message['date'], tz=None)
-    text = message['text']
-    return {
+        logger.info(
+            "Необходимо проверить THREAD_MAPS на соответствие возвращаемому от телеграм"
+        )
+
+    # Добавляем дату создания.
+    create_date = message["date"]
+    # datetime.fromtimestamp(message['date'], tz=None)
+
+    result_dict = {
         "author_id": author_id,
         "author_username": author_username,
         "author_name": author_name,
         "message_thread": message_thread,
-        "date": date,
-        "text": text
+        "create_date": create_date,
     }
 
+    if message.get("forward_origin"):
+        result_dict.update(**await handle_forwarded_message_data(message))
+
+    return result_dict
+
+
+async def handle_forwarded_message_data(message: dict) -> dict:
+    forwarded_message_dict = {"forwarded_create_data": message["forward_date"]}
+    forward_origin = message["forward_origin"]
+    
+    # Добавляем дату создания пересланного сообщения
+    forwarded_message_dict.update({"forwarded_create_data": message["forward_date"]})
+
+    # Обрабатываем пересланное от пользователя (sender_user)
+    if sender_user := forward_origin.get("sender_user"):
+        if sender_user["id"] == message["from"]["id"]:
+            info_msg = "Автор переслал свое собственное сообщение"
+        else:
+            if sender_user["id"] in settings.FAMILY_CHAT_IDS:
+                info_msg = f"Автор переслал сообщение от {settings.FAMILY_CHAT_IDS[sender_user['id']]}"
+            else:
+                info_msg = f"Автор переслал сообщение от {sender_user['first_name']} username которого: {sender_user['username']}"
+            
+        forwarded_message_dict.update(
+            {
+                "forwarded_msg_info": info_msg
+            }
+        )
+    
+    # Обрабатываем пересланное из чата
+    if chat := forward_origin.get("chat"):
+        username = chat.get('username')
+        if username:
+            info_msg = f"Автор переслал сообщение из чата с именем '{chat['title']}', username которого: '{chat.get('username')}'"
+        else:
+            info_msg = f"Автор переслал сообщение из чата с именем '{chat['title']}'"
+        forwarded_message_dict.update(
+            {
+                "forwarded_msg_info": info_msg
+            }
+        )
+
+    return forwarded_message_dict
 
 
 if __name__ == "__main__":
