@@ -4,6 +4,7 @@ from datetime import datetime
 
 import httpx
 from src.config import settings
+from src.logger import logger
 
 
 TG_API = f"https://api.telegram.org/bot{settings.BOT_TOKEN}"
@@ -29,24 +30,25 @@ async def fetch_updates(offset: int) -> list[dict]:
         return data["result"]
 
 
-async def collect_and_print(msg: int = 0):
+async def collect_messages(msg: int = 0):
     """Забрать все накопленные обновления и вывести на печать."""
     updates = await fetch_updates(offset=msg)
+    logger.info(f'Было собрано {len(updates)} сообщений.')
 
     for update in updates:
         msg = update['message']
 
         msg_type = [tp for tp in MSG_TYPES if tp in msg]
         if not msg_type:
-            print(f'В сообщении нет нужных типов из {MSG_TYPES}')
+            logger.error(f'В сообщении нет нужных типов из {MSG_TYPES}')
             continue
 
         if 'text' in msg_type:
             final_dict = await handle_text_messages(msg)
-            print(f'message is TEXT. and it contains\n{final_dict}')
+            # print(f'message is TEXT. and it contains\n{final_dict}')
 
 
-        # print(f'message type is: {msg_type[0]} From {msg['from']['first_name']}')
+        print(f'message type is: {msg_type[0]} From {msg['from']['first_name']}')
 
 
         # pprint.pprint(update)
@@ -86,4 +88,4 @@ async def handle_text_messages(message: dict) -> dict:
 
 
 if __name__ == "__main__":
-    asyncio.run(collect_and_print())
+    asyncio.run(collect_messages())

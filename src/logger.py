@@ -1,0 +1,23 @@
+import sys
+from loguru import logger
+
+logger.remove()
+
+logger.add(
+    sys.stdout,
+    format=(
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <4}</level> | "
+        "<cyan>{file}</cyan> -> <cyan>{function}:{line}</cyan> | "
+        "<level>{message}</level>"
+    ),
+    level="DEBUG"
+)
+
+logger.add(
+    "logs/app.log",
+    rotation="10:00",
+    retention="30 days",
+    compression="zip",
+    level="DEBUG"
+)
