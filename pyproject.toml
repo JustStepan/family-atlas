@@ -8,4 +8,10 @@ dependencies = [
     "httpx>=0.28.1",
     "langchain-openai>=1.1.12",
     "pydantic-settings>=2.13.1",
+    "sqlalchemy>=2.0.48",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
 ]
