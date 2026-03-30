@@ -41,6 +41,10 @@ async def collect_messages(msg: int = 0):
         # pprint.pprint(update)
         # print()
         msg = update["message"]
+        # отсеиваем сообщения которые не содержат message_thread_id 
+        # потом можно будет убрать после отладки
+        if 'message_thread_id' not in msg:
+            continue
 
         msg_type = [tp for tp in MSG_TYPES if tp in msg]
         if not msg_type:
@@ -48,8 +52,8 @@ async def collect_messages(msg: int = 0):
             continue
 
         # Печатаем только сообщение messages
-        # pprint.pprint(msg)
-        # print()
+        pprint.pprint(msg)
+        print()
 
         final_dict = await handle_message(msg)
         final_dict.update({"msg_type": msg_type[0]})
