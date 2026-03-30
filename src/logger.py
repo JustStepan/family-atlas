@@ -11,7 +11,7 @@ logger.add(
         "<cyan>{file}</cyan> -> <cyan>{function}:{line}</cyan> | "
         "<level>{message}</level>"
     ),
-    level="DEBUG"
+    level="INFO"
 )
 
 logger.add(

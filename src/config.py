@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     OBSIDIAN_VAULT_PATH: str
     FAMILY_CHAT_IDS: Dict[int, str]
     FORUM_CHAT_ID: int
+    MSG_TYPES: list[str] = ["voice", "text", "photo", 'document']
     
 
     # llama-server

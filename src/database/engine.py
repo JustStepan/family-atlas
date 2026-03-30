@@ -1,18 +1,36 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from src.config import BASE_DIR
+from src.logger import logger
+
 from .models import Base
 
 
 DB_DIR = BASE_DIR / 'family-atlas.db'
-engine = create_engine(f'sqlite:///{DB_DIR}', echo=True)
-Base.metadata.create_all(engine)
+engine = create_async_engine(f'sqlite+aiosqlite:///{DB_DIR}', echo=True)
 
 
-@contextmanager
-def get_db():
-    with Session(engine) as session:
+async def ensure_db_initialized():
+    async with engine.begin() as conn:
+        exists = await conn.run_sync(check_table_exists, "authors")
+        
+        if not exists:
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("База данных инициализирована")
+        else:
+            logger.debug("База данных уже существует")
+
+
+def check_table_exists(sync_conn, table_name):
+    """Синхронная функция-хелпер для проверки существования таблицы."""
+    inspector = inspect(sync_conn)
+    return inspector.has_table(table_name)
+
+
+@asynccontextmanager
+async def get_db():
+    async with AsyncSession(engine) as session:
         yield session

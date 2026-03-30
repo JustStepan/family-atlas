@@ -1,6 +1,7 @@
 import asyncio
 import pprint
 from datetime import datetime
+from typing import Any
 
 import httpx
 from src.config import settings
@@ -8,7 +9,6 @@ from src.logger import logger
 
 
 TG_API = f"https://api.telegram.org/bot{settings.BOT_TOKEN}"
-MSG_TYPES = ["voice", "text", "photo", 'document']
 
 THREAD_MAPS = {
     2: "diary",
@@ -31,10 +31,11 @@ async def fetch_updates(offset: int) -> list[dict]:
         return data["result"]
 
 
-async def collect_messages(msg: int = 0):
+async def collect_messages(msg: int = 0) -> list[dict[str, Any]]:
     """Забрать все накопленные обновления"""
     updates = await fetch_updates(offset=msg)
     logger.info(f"Было собрано {len(updates)} сообщений.")
+    collected_msgs = []
 
     for update in updates:
         # Печатаем полный выход из телеги
@@ -46,9 +47,9 @@ async def collect_messages(msg: int = 0):
         if 'message_thread_id' not in msg:
             continue
 
-        msg_type = [tp for tp in MSG_TYPES if tp in msg]
+        msg_type = [tp for tp in settings.MSG_TYPES if tp in msg]
         if not msg_type:
-            logger.error(f"В сообщении нет нужных типов из {MSG_TYPES}")
+            logger.error(f"В сообщении нет нужных типов из {settings.MSG_TYPES}")
             continue
 
         # Печатаем только сообщение messages
@@ -84,11 +85,12 @@ async def collect_messages(msg: int = 0):
                     "doc_name": msg.get('document')['file_name'],
                 }
             )
+        collected_msgs.append(final_dict)
 
+    # Печатаем то что сами распарсили
+    # pprint.pprint(collected_msgs)
 
-        # Печатаем то что сами распарсили
-        pprint.pprint(final_dict)
-        print()
+    return collected_msgs
 
 
 async def handle_message(message: dict) -> dict:
@@ -120,7 +122,7 @@ async def handle_message(message: dict) -> dict:
         "author_username": author_username,
         "author_name": author_name,
         "message_thread": message_thread,
-        "create_date": create_date,
+        "created_at": create_date,
     }
 
     # Добавляем информацию о пересланном сообщении если есть
@@ -154,7 +156,7 @@ async def handle_forwarded_message_data(message: dict) -> dict:
             if sender_user["id"] in settings.FAMILY_CHAT_IDS:
                 info_msg = f"Автор переслал сообщение от {settings.FAMILY_CHAT_IDS[sender_user['id']]}"
             else:
-                info_msg = f"Автор переслал сообщение от {sender_user['first_name']} username которого: {sender_user['username']}"
+                info_msg = f"Автор переслал сообщение от {sender_user['first_name']}, username которого: {sender_user['username']}"
             
         forwarded_message_dict.update(
             {
