@@ -4,7 +4,7 @@ from datetime import datetime
 
 import httpx
 from src.config import settings
-from _local.telegram.logger import logger
+from src.logger import logger
 
 
 TG_API = f"https://api.telegram.org/bot{settings.BOT_TOKEN}"

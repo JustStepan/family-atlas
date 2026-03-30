@@ -48,7 +48,7 @@ cover/
 # Local files/folders
 calendar_credentials*
 calendar_token*
-_local_*
+_local*
 stt_models/
 media*
 models*
