@@ -52,8 +52,8 @@ async def collect_messages(msg: int = 0):
             continue
 
         # Печатаем только сообщение messages
-        pprint.pprint(msg)
-        print()
+        # pprint.pprint(msg)
+        # print()
 
         final_dict = await handle_message(msg)
         final_dict.update({"msg_type": msg_type[0]})
@@ -61,11 +61,13 @@ async def collect_messages(msg: int = 0):
         # Добавляем содержательные данные (текст, ссылку на фото или документ или аудио...)
         if 'text' in msg_type:
             final_dict.update({"text": msg.get('text')})
-
+            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
         if 'photo' in msg_type:
+            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
             final_dict.update({"photo_id": msg.get('photo')[-1]['file_id']})
 
         if 'voice' in msg_type:
+            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
             final_dict.update(
                 {
                     "voice_id": msg.get('voice')['file_id'],
@@ -74,6 +76,7 @@ async def collect_messages(msg: int = 0):
             )
 
         if 'document' in msg_type:
+            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
             final_dict.update(
                 {
                     "doc_id": msg.get('document')['file_id'],
