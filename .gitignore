@@ -50,9 +50,8 @@ cover/
 calendar_credentials*
 calendar_token*
 _local*
-stt_models/
+llm_models/
 media*
-models*
 logs*
 
 # Environments

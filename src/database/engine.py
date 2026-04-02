@@ -10,7 +10,7 @@ from .models import Base
 
 
 DB_DIR = BASE_DIR / 'family-atlas.db'
-engine = create_async_engine(f'sqlite+aiosqlite:///{DB_DIR}', echo=True)
+engine = create_async_engine(f'sqlite+aiosqlite:///{DB_DIR}', echo=False)
 
 
 async def ensure_db_initialized():

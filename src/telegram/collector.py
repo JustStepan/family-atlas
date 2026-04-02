@@ -31,6 +31,22 @@ async def fetch_updates(offset: int) -> list[dict]:
         return data["result"]
 
 
+def _get_doc_spec(m_type: str, msg: dict) -> dict:
+    final_dict = {}
+    final_dict.update(
+        {
+            f"file_id": msg.get(f'{m_type}')['file_id'],
+            f"file_mime_type": msg.get(f'{m_type}')['mime_type'],
+        }
+    )
+
+    if m_type in ['document', 'video']:
+        final_dict.update({f"file_name": msg.get(f'{m_type}')['file_name']})
+
+    logger.debug(f"Было собрано '{m_type}' сообщениe")
+    return final_dict
+
+
 async def collect_messages(msg: int = 0) -> list[dict[str, Any]]:
     """Забрать все накопленные обновления"""
     updates = await fetch_updates(offset=msg)
@@ -63,28 +79,12 @@ async def collect_messages(msg: int = 0) -> list[dict[str, Any]]:
         if 'text' in msg_type:
             final_dict.update({"text": msg.get('text')})
             logger.debug(f"Было собрано {msg_type[0]} сообщениe")
-        if 'photo' in msg_type:
+        elif 'photo' in msg_type:
             logger.debug(f"Было собрано {msg_type[0]} сообщениe")
-            final_dict.update({"photo_id": msg.get('photo')[-1]['file_id']})
+            final_dict.update({"file_id": msg.get('photo')[-1]['file_id']})
+        else:
+            final_dict.update(_get_doc_spec(msg_type[0], msg))
 
-        if 'voice' in msg_type:
-            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
-            final_dict.update(
-                {
-                    "voice_id": msg.get('voice')['file_id'],
-                    "voice_mime_type": msg.get('voice')['mime_type'],
-                }
-            )
-
-        if 'document' in msg_type:
-            logger.debug(f"Было собрано {msg_type[0]} сообщениe")
-            final_dict.update(
-                {
-                    "doc_id": msg.get('document')['file_id'],
-                    "doc_mime_type": msg.get('document')['mime_type'],
-                    "doc_name": msg.get('document')['file_name'],
-                }
-            )
         collected_msgs.append(final_dict)
 
     # Печатаем то что сами распарсили
@@ -101,17 +101,13 @@ async def handle_message(message: dict) -> dict:
     author_name = settings.FAMILY_CHAT_IDS.get(author_id, "")
     # Обрабатываем ошибку соответствия id автора в env
     if not author_name:
-        logger.info(
-            "Необходимо проверить env файл и заполнить правильно FAMILY_CHAT_IDS"
-        )
+        raise ValueError("Необходимо проверить env файл и заполнить правильно FAMILY_CHAT_IDS")
 
     # получаем message_thread - дневник, календарь и проч
     # также делаем проверку на совместимость с THREAD_MAPS
     message_thread = THREAD_MAPS.get(message["message_thread_id"], "")
     if not message_thread:
-        logger.info(
-            "Необходимо проверить THREAD_MAPS на соответствие возвращаемому от телеграм"
-        )
+        raise ValueError("Необходимо проверить THREAD_MAPS на соответствие возвращаемому от телеграм")
 
     # Добавляем дату создания.
     create_date = message["date"]
