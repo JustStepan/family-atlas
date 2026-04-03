@@ -31,12 +31,15 @@ class Settings(BaseSettings):
 
     # Telegram
     BOT_TOKEN: str
-    OBSIDIAN_VAULT_PATH: str
+    COLLECTOR_API_KEY: str
+    COLLECTOR_URL: str
     FAMILY_CHAT_IDS: Dict[int, str]
     FORUM_CHAT_ID: int
     MSG_TYPES: list[str] = ["voice", "text", "photo", 'document', 'video']
     MSG_SESSION_THRESHOLD: dict[str, int] = {"notes": 5, "diary": 10}
     
+    # Obsidian
+    OBSIDIAN_VAULT_PATH: str
 
     # llama-server
     LLAMA_SERVER_URL: str = "http://localhost:8080"
@@ -45,8 +48,9 @@ class Settings(BaseSettings):
     # Модели
     LLM_MODEL_FILE: str = MODELS["gigachat"]["file"]
     VISION_MODEL_FILE: str = MODELS["vision"]["file"]
+    STT_MODEL: str = 'nemo-conformer-tdt' # gigaam-v3-e2e-rnnt
+    STT_MODEL_PATH: str = f"{BASE_DIR}/llm_models/stt_models/parakeet-tdt-0.6b-v3-int8/"
     # VISION_MMPROJ_FILE: str = "vision/mmproj-Qwen3.5-4B-BF16.gguf"
-    
 
     # Режим подключения
     CONNECTION_TYPE: str = "offline"

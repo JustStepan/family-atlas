@@ -1,15 +1,14 @@
 import asyncio
+import pprint
 
-from src.infrastructure.context import AppContext
-from src.agents.vision import describe_image
-from src.agents.text import summarize
-from src.telegram.save_msgs import raw_msgs_to_db
+from src.msg_processor.collect_msg import save_msgs
 
 
 async def main():
 
-    await raw_msgs_to_db()
-
+    result = await save_msgs()
+    print(result)
+    # pprint.pprint(get_result)
     # async with AppContext(verbose=True) as ctx:
     #     await ctx.use_model("vision")
     #     description = await describe_image(ctx.llm, "/Users/stepan/Documents/Dev/familybot/daimond.png")
