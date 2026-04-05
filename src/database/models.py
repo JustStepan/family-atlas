@@ -16,12 +16,13 @@ class LocalRawMessages(Base):
     author_username: Mapped[str] = mapped_column(String)
     caption: Mapped[str | None]
     content: Mapped[str | None]
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[str] = mapped_column(String)
     file_id: Mapped[str | None]
     file_mime_type: Mapped[str | None]
     file_name: Mapped[str | None]
     forwarded_create_data: Mapped[str | None]
     forwarded_msg_info: Mapped[str | None]
+    msg_status: Mapped[str | None]
     message_thread: Mapped[str] = mapped_column(String)
     msg_type: Mapped[str] = mapped_column(String)
     original_id: Mapped[int] = mapped_column(Integer)
@@ -36,4 +37,6 @@ class LocalRawMessages(Base):
 class AssembledMessages(Base):
     __tablename__ = 'asmbld_messages'
     """Здесь будут сообщения уже подготовленные для работы агента"""
-    pass
+    content: Mapped[str] = mapped_column(String)
+    session_id: Mapped[int] = mapped_column(Integer)
+    message_thread: Mapped[str] = mapped_column(String)

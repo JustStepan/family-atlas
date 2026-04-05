@@ -1,13 +1,24 @@
 import asyncio
-import pprint
 
+from src.msg_assembler.assembler import prepare_msgs
 from src.msg_processor.collect_msg import save_msgs
 
 
 async def main():
 
     result = await save_msgs()
+    await asyncio.sleep(2)
     print(result)
+
+if __name__ == '__main__':
+
+    asyncio.run(main())
+
+    print(asyncio.run(prepare_msgs()))
+
+
+
+
     # pprint.pprint(get_result)
     # async with AppContext(verbose=True) as ctx:
     #     await ctx.use_model("vision")
@@ -16,7 +27,3 @@ async def main():
     #     await ctx.use_model("gigachat")
     #     summary = await summarize(ctx.llm, description)
     #     print(summary)
-
-
-if __name__ == '__main__':
-    asyncio.run(main())

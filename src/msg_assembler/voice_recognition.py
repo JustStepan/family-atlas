@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 from functools import lru_cache
@@ -8,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import BASE_DIR
 
-from ..storage.telegram_files import download_file
+from src.msg_assembler.telegram_file import download_file
 from src.config import settings
-from ..storage.models import Message
+from src.database.models import LocalRawMessages
 from src.logger import logger
 
-# Папка для временных файлов — удаляем после обработки
 
-MEDIA_DIR = BASE_DIR / 'src' / 'msg_processor' / 'tmp_storage' / 'voice'
+# Папка для временных файлов — удаляем после обработки
+MEDIA_DIR = BASE_DIR / 'src' / 'msg_assembler' / 'tmp_storage' / 'voice'
 
 
 @lru_cache(maxsize=1)
@@ -32,8 +33,7 @@ def get_model():
 
 
 def convert_to_wav(ogg_path: Path) -> Path:
-    """Конвертирует .ogg в .wav через ffmpeg.
-    Parakeet требует: 16kHz, моно, PCM."""
+    """Конвертирует .ogg в .wav через ffmpeg"""
     wav_path = ogg_path.with_suffix(".wav")
 
     result = subprocess.run(
@@ -60,31 +60,9 @@ def transcribe(wav_path: Path) -> str:
     return model.recognize(str(wav_path))
 
 
-def cleanup(ogg_path: Path, wav_path: Path) -> None:
-    """Удаляет временные файлы после обработки."""
-    ogg_path.unlink(missing_ok=True)
-    wav_path.unlink(missing_ok=True)
-
-
-async def process_voice_messages(session: AsyncSession) -> int:
-    """Основная функция обработки голосовых сообщений.
-    Возвращает количество обработанных сообщений."""
-
-    # Берём все pending голосовые сообщения
-    result = await session.execute(
-        select(Message).where(
-            Message.message_type == "voice",
-            Message.status == "pending"
-        )
-    )
-    messages = result.scalars().all()
-
-    if not messages:
-        return 0
-
-    processed_count = 0
-
-    for msg in messages:
+async def process_voice_messages(session: AsyncSession, voice_msgs: list[LocalRawMessages]) -> list[LocalRawMessages]:
+    """Основная функция обработки голосовых сообщений"""
+    for msg in voice_msgs:
         ogg_path = None
         wav_path = None
 
@@ -92,30 +70,29 @@ async def process_voice_messages(session: AsyncSession) -> int:
             logger.info(f"Обрабатываем аудио сообщение {msg.id}...")
 
             # Скачиваем файл
-            ogg_path = await download_file(msg.raw_content, MEDIA_DIR, "ogg")
+            ogg_path = await download_file(msg.file_id, MEDIA_DIR, "ogg")
 
             # Конвертируем 
             wav_path = convert_to_wav(ogg_path)
 
             # Транскрибируем
             text = transcribe(wav_path)
-            logger.info(f"Транскрипция: {text[:60]}...")
+            logger.info(f"Транскрипция: {text[:50]}...")
 
             # Обновляем запись в БД
-            msg.text_content = text
-            msg.status = "transcribed"
-            await session.commit()
-
-            processed_count += 1
+            msg.content = text
+            msg.msg_status = "transcribed"
 
         except Exception as e:
             logger.error(f"Ошибка STT: {e}")
-            msg.status = "error_stt"
-            await session.commit()
+            await session.rollback()
+            msg.msg_status = "error_stt"
 
         finally:
             # Удаляем временные файлы в любом случае
-            if ogg_path:
-                cleanup(ogg_path, wav_path or ogg_path.with_suffix(".wav"))
+            if ogg_path and os.path.exists(ogg_path):
+                os.remove(ogg_path)
+            if wav_path and os.path.exists(wav_path):
+                os.remove(wav_path)
 
-    return processed_count
+    return voice_msgs

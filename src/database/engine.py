@@ -15,13 +15,13 @@ engine = create_async_engine(f'sqlite+aiosqlite:///{DB_DIR}', echo=False)
 
 async def ensure_db_initialized():
     async with engine.begin() as conn:
-        exists = await conn.run_sync(check_table_exists, "authors")
+        exists = await conn.run_sync(check_table_exists, "lcrwmsgs")
         
         if not exists:
             await conn.run_sync(Base.metadata.create_all)
             logger.info("База данных инициализирована")
         else:
-            logger.debug("База данных уже существует")
+            logger.info("База данных уже существует")
 
 
 def check_table_exists(sync_conn, table_name):

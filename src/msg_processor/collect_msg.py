@@ -55,7 +55,7 @@ async def save_msgs() -> int:
     return len(messages)
 
 
-async def mark_messages_done(ids: list[int]) -> None:
+async def mark_messages_done(ids: list[int]):
     async with httpx.AsyncClient() as client:
         r = await client.post(
             f"{settings.COLLECTOR_URL}/messages/done/",
@@ -63,3 +63,4 @@ async def mark_messages_done(ids: list[int]) -> None:
             json={"ids": ids}
         )
         r.raise_for_status()
+        return r.json()

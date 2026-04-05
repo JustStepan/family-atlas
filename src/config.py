@@ -13,7 +13,7 @@ MODELS = {
     "vision": {
         "file": "Qwen3.5-4B-Q4_K_M.gguf",
         "args": [
-            "--mmproj", str(BASE_DIR / "models" / "mmproj-Qwen3.5-4B-BF16.gguf"),
+            "--mmproj", str(BASE_DIR / "llm_models" / "mmproj-Qwen3.5-4B-BF16.gguf"),
             "--ctx-size", "8192",
             "--reasoning", "off",
             "--image-min-tokens", "1024",
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # --- вычисляемые пути ---
     @property
     def llm_model_path(self) -> Path:
-        return BASE_DIR / "models"
+        return BASE_DIR / "llm_models"
 
 
 settings = Settings()
