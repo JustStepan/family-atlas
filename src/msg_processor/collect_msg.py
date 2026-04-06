@@ -28,12 +28,13 @@ async def get_or_create(session, model, search_params, create_params=None):
 
 
 async def save_msgs() -> int:
+    await ensure_db_initialized()
+    
     messages = await fetch_ready_messages()
     if not messages:
-        logger.info('Собрано 0 сообщений')
+        logger.info('Новых сообщений нет')
         return 0
-
-    await ensure_db_initialized()
+    logger.info(f'Собрано {len(messages)} сообщений')
     async with get_db() as session:
         for msg in messages:
             try:

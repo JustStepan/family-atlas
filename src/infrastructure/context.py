@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from langchain_openai import ChatOpenAI
 from .llm_server import LlamaServer
-from src.config import MODELS, settings
+from src.config import settings
 
 
 @dataclass
@@ -14,13 +14,13 @@ class AppContext:
         self._server = LlamaServer(verbose=self.verbose)
 
     async def use_model(self, alias: str) -> None:
-        await self._server.load(MODELS[alias])
+        await self._server.load(settings.models[alias])
         self._llm = ChatOpenAI(
             model=alias,
             base_url=f"{settings.LLAMA_SERVER_URL}/v1",
             api_key="dummy",
             temperature=0.1,
-            max_tokens=MODELS[alias]["max_tokens"],
+            max_tokens=settings.models[alias]["max_tokens"],
         )
 
     @property

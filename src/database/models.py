@@ -1,17 +1,18 @@
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import Integer, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
-    id: Mapped[int] = mapped_column(primary_key=True)
     pass
 
 
 class LocalRawMessages(Base):
     __tablename__ = 'lcrwmsgs'
     
+    id: Mapped[int] = mapped_column(primary_key=True)
     author_name: Mapped[str] = mapped_column(String)
     author_username: Mapped[str] = mapped_column(String)
     caption: Mapped[str | None]
@@ -20,6 +21,7 @@ class LocalRawMessages(Base):
     file_id: Mapped[str | None]
     file_mime_type: Mapped[str | None]
     file_name: Mapped[str | None]
+    file_path: Mapped[str | None]
     forwarded_create_data: Mapped[str | None]
     forwarded_msg_info: Mapped[str | None]
     msg_status: Mapped[str | None]
@@ -37,6 +39,8 @@ class LocalRawMessages(Base):
 class AssembledMessages(Base):
     __tablename__ = 'asmbld_messages'
     """Здесь будут сообщения уже подготовленные для работы агента"""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
     content: Mapped[str] = mapped_column(String)
     session_id: Mapped[int] = mapped_column(Integer)
     message_thread: Mapped[str] = mapped_column(String)

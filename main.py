@@ -12,8 +12,9 @@ async def main():
 
 if __name__ == '__main__':
 
-    asyncio.run(main())
-
+    messages_collected = asyncio.run(main())
+    # print(messages_collected)
+    # if messages_collected:
     print(asyncio.run(prepare_msgs()))
 
 
