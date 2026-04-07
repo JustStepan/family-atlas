@@ -3,7 +3,7 @@ import pprint
 from sqlalchemy import select, update
 
 from src.msg_assembler.docs_saver import process_doc_messages
-from src.msg_processor.collect_msg import mark_messages_done
+from src.msg_collector.collect_msg import mark_messages_done
 from src.database.models import AssembledMessages, LocalRawMessages
 from src.msg_assembler.image_describer import process_photo_messages
 from src.msg_assembler.voice_recognition import process_voice_messages

@@ -1,8 +1,5 @@
-from datetime import datetime
-from pathlib import Path
-
-from sqlalchemy import Integer, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -38,9 +35,9 @@ class LocalRawMessages(Base):
 
 class AssembledMessages(Base):
     __tablename__ = 'asmbld_messages'
-    """Здесь будут сообщения уже подготовленные для работы агента"""
 
     id: Mapped[int] = mapped_column(primary_key=True)
     content: Mapped[str] = mapped_column(String)
     session_id: Mapped[int] = mapped_column(Integer)
     message_thread: Mapped[str] = mapped_column(String)
+    session_status: Mapped[str] = mapped_column(String, default="ready")

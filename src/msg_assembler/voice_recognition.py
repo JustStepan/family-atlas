@@ -1,13 +1,9 @@
 import os
-from os import path
 import subprocess
 from pathlib import Path
 from functools import lru_cache
 
 import onnx_asr
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.config import settings
 
 from src.msg_assembler.telegram_file import download_file
 from src.config import settings
