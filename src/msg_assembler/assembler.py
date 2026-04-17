@@ -1,12 +1,10 @@
-import pprint
-
 from sqlalchemy import select, update
 
-from src.msg_assembler.docs_saver import process_doc_messages
-from src.msg_collector.collect_msg import mark_messages_done
+from src.msg_assembler.voice_recognition import process_voice_messages
+from src.msg_assembler.docs_saver import MIME_TO_HANDLER, process_doc_messages
 from src.database.models import AssembledMessages, LocalRawMessages
 from src.msg_assembler.image_describer import process_photo_messages
-from src.msg_assembler.voice_recognition import process_voice_messages
+from src.infrastructure.context import get_llm_model
 from src.database.engine import get_db
 from src.logger import logger
 
@@ -32,22 +30,34 @@ async def prepare_msgs():
         if not messages:
             logger.info('Нет сообщений для обработки')
             return []
-        
-        voice_msgs = photo_msgs = docs_msgs = txt_msgs = []
 
-        if voice_msgs := [m for m in messages if m.msg_type == "voice"]:
+        photo_msgs = [m for m in messages if m.msg_type == "photo"]
+        docs_msgs = [m for m in messages if m.msg_type in ["document", "video"]]
+        voice_msgs = [m for m in messages if m.msg_type == "voice"]
+        txt_msgs = [m for m in messages if m.msg_type == "text"]
+
+        # нужен ли vision для документов
+        vision_in_docs = any(m.file_mime_type in MIME_TO_HANDLER for m in docs_msgs)
+
+        if voice_msgs:
             logger.info(f'Обрабатываем аудио сообщения: {len(voice_msgs)} шт.')
             voice_msgs = await process_voice_messages(voice_msgs)
 
-        if photo_msgs := [m for m in messages if m.msg_type == "photo"]:
-            logger.info(f'Обрабатываем фото сообщения: {len(photo_msgs)} шт.')
-            photo_msgs = await process_photo_messages(photo_msgs)
+        if photo_msgs or vision_in_docs:
+            async with get_llm_model() as ctx:
+                await ctx.use_model("vision")
+                if photo_msgs:
+                    logger.info(f'Обрабатываем фото: {len(photo_msgs)} шт.')
+                    photo_msgs = await process_photo_messages(ctx, photo_msgs)
+                if docs_msgs:
+                    logger.info(f'Обрабатываем документы c vision: {len(docs_msgs)} шт.')
+                    docs_msgs = await process_doc_messages(docs_msgs, ctx)
 
-        if docs_msgs := [m for m in messages if m.msg_type in ["document", "video"]]:
-            logger.info(f'Обрабатываем документы: {len(docs_msgs)} шт.')
+        elif docs_msgs: 
+            logger.info(f'Обрабатываем документы (pdf, zip, etc): {len(docs_msgs)} шт.')
             docs_msgs = await process_doc_messages(docs_msgs)
 
-        if txt_msgs := [m for m in messages if m.msg_type == "text"]:
+        if txt_msgs:
             logger.info(f'Обрабатываем текстовые сообщения: {len(txt_msgs)} шт.')
             for msg in txt_msgs:
                 msg.msg_status = 'done'
@@ -61,24 +71,17 @@ async def prepare_msgs():
             logger.error(f'Ошибка в assembler: {e}')
             raise
 
-        try:
-            server_result = await mark_messages_done(done_ids)
-        except Exception as e:
-            logger.error(f'Произошла ошибка изменения статуса online бд: {e}')
-            
-        if server_result["message"] == 'ok':
-            await update_local_msg_status(session, done_ids)
-
+        await update_local_msg_status(session, done_ids)
         await session.commit()
         
-        return server_result
+        return done_ids
 
 
-async def update_local_msg_status(session, original_id):
+async def update_local_msg_status(session, tlg_msg_id):
     try:
         await session.execute(
             update(LocalRawMessages)
-            .where(LocalRawMessages.original_id.in_(original_id))
+            .where(LocalRawMessages.tlg_msg_id.in_(tlg_msg_id))
             .values(session_status="done")
         )
     except Exception as e:
@@ -130,8 +133,6 @@ async def assembler(session, messages) -> list[int]:
     if new_data:
         session_data.append(new_data)
 
-    pprint.pprint(session_data)
-
     for ss in session_data:
         # проверяем что такая сессия ещё не собрана
         existing = await session.execute(
@@ -142,11 +143,11 @@ async def assembler(session, messages) -> list[int]:
             continue
 
         assembled = AssembledMessages(
-            content=ss["content"],
+            raw_content=ss["content"],
             session_id=ss["session_id"],
             message_thread=ss["message_thread"],
         )
         session.add(assembled)
         logger.debug(f'Добавлена сессия {ss["session_id"]}')
 
-    return [m.original_id for m in messages]
+    return [m.tlg_msg_id for m in messages]

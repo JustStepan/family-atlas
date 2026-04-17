@@ -1,7 +1,7 @@
-"""Запуск llama-server"""
 import asyncio
 import httpx
 
+from src.logger import logger
 from src.config import settings
 
 
@@ -18,9 +18,14 @@ class LlamaServer:
     def __init__(self, verbose: bool = False):
         self._verbose = verbose
         self._proc: asyncio.subprocess.Process | None = None
+        self._current_alias: str | None = None
 
-    async def load(self, model_cfg: dict) -> None:
-        await self.unload()  # ← всегда чисто выгружаем перед загрузкой
+    async def load(self, alias: str, model_cfg: dict) -> None:
+        if alias == self._current_alias:
+            logger.debug(f"Модель уже загружена: {alias}")
+            return
+
+        await self.unload()
 
         out = None if self._verbose else asyncio.subprocess.DEVNULL
         self._proc = await asyncio.create_subprocess_exec(
@@ -32,6 +37,8 @@ class LlamaServer:
             stderr=out,
         )
         await self._wait()
+        self._current_alias = alias
+        logger.info(f"Модель загружена: {alias}")
 
     async def unload(self) -> None:
         if self._proc is None:
@@ -39,6 +46,8 @@ class LlamaServer:
         self._proc.terminate()
         await self._proc.wait()
         self._proc = None
+        self._current_alias = None
+        logger.info("llama-server остановлен")
 
     async def _wait(self, timeout: int = 120) -> None:
         async with httpx.AsyncClient() as client:
@@ -51,3 +60,4 @@ class LlamaServer:
                     pass
                 await asyncio.sleep(1)
         raise TimeoutError("Сервер не ответил за 120 секунд")
+    

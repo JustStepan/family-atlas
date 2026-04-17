@@ -1,23 +1,22 @@
 import asyncio
 
+from src.logger import setup_logger
 from src.agents.text import test_agent
 from src.msg_assembler.assembler import prepare_msgs
-from src.msg_collector.collect_msg import save_msgs
+from src.msg_collector.telethon_collector import collect_and_save
+
+setup_logger()
 
 
 async def main():
-
-    await save_msgs()
-    await asyncio.sleep(2)
+    await collect_and_save()
+    await prepare_msgs()
     results = await test_agent()
-    print('START AGENT CYCLE')
     for r in results:
-        print("TAGS:", r.tags, "SUMMARY", r.summary, sep='\n\n')
-    print('END AGENT CYCLE')
+        print("TAGS:", r.tags)
+        print("SUMMARY:", r.summary)
+        print('***' * 20)
 
 if __name__ == '__main__':
+    asyncio.run(main())
 
-    messages_collected = asyncio.run(main())
-    # print(messages_collected)
-    # if messages_collected:
-    # print(asyncio.run(prepare_msgs()))

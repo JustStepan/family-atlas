@@ -1,13 +1,13 @@
-from datetime import datetime
 from pathlib import Path
 import mimetypes
+from datetime import datetime
 import re
 
+from src.infrastructure.context import AppContext
 from src.msg_assembler.image_describer import process_photo_messages
 from src.msg_assembler.voice_recognition import process_voice_messages
 from src.config import settings
 
-from src.msg_assembler.telegram_file import download_file
 from src.database.models import LocalRawMessages
 from src.logger import logger
 
@@ -29,24 +29,14 @@ MIME_TO_HANDLER = {
     'audio/wav':  (process_voice_messages, 'wav'),
 }
 
-
-def rename_file(old_path: Path, new_name: str) -> Path:
-    name = "_".join([n.strip() for n in new_name.split()])
-    name = re.sub(r'[^\w]', '_', name)
-    new_path = old_path.parent / f'{name}{old_path.suffix}'
-    old_path.rename(new_path)
-    return new_path
-
-
-async def process_doc_messages(doc_msgs: list[LocalRawMessages]) -> list[LocalRawMessages]:
+async def process_doc_messages(doc_msgs: list[LocalRawMessages], ctx: AppContext = None) -> list[LocalRawMessages]:
     """Функция сохранения документа из базы данных."""
 
     for i, msg in enumerate(doc_msgs):
 
-        # Если в документах пришел тип данных подлежащий обработке (фото, аудио)
-        if msg.msg_type == "document" and msg.file_mime_type in MIME_TO_HANDLER:
+        if ctx and msg.file_mime_type in MIME_TO_HANDLER:
             function, ext = MIME_TO_HANDLER[msg.file_mime_type]
-            doc_msgs[i] = (await function([msg], ext))[0]
+            doc_msgs[i] = (await function(ctx, [msg], ext))[0]
             continue
 
         # обрабатываем документ как документ
@@ -59,9 +49,7 @@ async def process_doc_messages(doc_msgs: list[LocalRawMessages]) -> list[LocalRa
         try:
             logger.info(f"Обрабатываем сообщение с документом {msg.id}...")
             
-            extension = Path(filename).suffix.lstrip('.')
-            doc_path = await download_file(msg.file_id, DOC_DIR, extension)
-
+            doc_path = Path(msg.file_path)
             safe_name = re.sub(r'[^\w.]', '_', filename)
             new_path = doc_path.parent / safe_name
             doc_path.rename(new_path)

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
+    TG_API_ID: int
+    TG_API_HASH: str
+
     # Telegram
     BOT_TOKEN: str
     COLLECTOR_API_KEY: str
@@ -59,12 +62,10 @@ class Settings(BaseSettings):
                 "max_tokens": 2048,
             },
             "vision": {
-                "file": "google_gemma-4-E4B-it-Q5_K_M.gguf", # Qwen3.5-4B-Q4_K_M.gguf | google_gemma-4-E4B-it-Q5_K_M
+                "file": "Qwen3-VL-4B-Instruct-Q6_K.gguf",
                 "args": [
-                    "--mmproj", str(self.llm_model_path / "mmproj-google_gemma-4-E4B-it-f16.gguf"), # mmproj-google_gemma-4-E4B-it-f16 | mmproj-Qwen3.5-4B-BF16.gguf
+                    "--mmproj", str(self.llm_model_path / "mmproj-Qwen3-VL-4B-Instruct-F16.gguf"),
                     "--ctx-size", "8192",
-                    # "--reasoning", "off", # Это параметры для Qwen3.5
-                    # "--image-min-tokens", "1024",
                 ],
                 "max_tokens": 1024,
             },

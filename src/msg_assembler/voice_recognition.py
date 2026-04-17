@@ -5,7 +5,6 @@ from functools import lru_cache
 
 import onnx_asr
 
-from src.msg_assembler.telegram_file import download_file
 from src.config import settings
 from src.database.models import LocalRawMessages
 from src.logger import logger
@@ -16,7 +15,7 @@ MEDIA_DIR = settings.get_media_path('voice')
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 @lru_cache(maxsize=1)
-def get_model():
+def get_sst_model():
     """Загружает модель один раз, кешируется навсегда."""
     return onnx_asr.load_model(
         settings.STT_MODEL,
@@ -51,14 +50,13 @@ def convert_to_wav(audio_path: Path) -> Path:
 
 def transcribe(wav_path: Path) -> str:
     """Запускает STT модель и возвращает текст."""
-    model = get_model()
+    model = get_sst_model()
     # recognize() — синхронный вызов, возвращает строку
     return model.recognize(str(wav_path))
 
 
 async def process_voice_messages(
-    voice_msgs: list[LocalRawMessages],
-    extension: str = 'ogg'
+    voice_msgs: list[LocalRawMessages]
     ) -> list[LocalRawMessages]:
     """Основная функция обработки голосовых сообщений"""
     for msg in voice_msgs:
@@ -68,12 +66,9 @@ async def process_voice_messages(
         try:
             logger.info(f"Обрабатываем аудио сообщение {msg.id}...")
 
-            # Скачиваем файл
-            audio_path = await download_file(msg.file_id, MEDIA_DIR, extension)
-
-            # Конвертируем 
+            audio_path = Path(msg.file_path)
+            # Конвертируем файл
             wav_path = convert_to_wav(audio_path)
-
             # Транскрибируем
             text = transcribe(wav_path)
             logger.info(f"Транскрипция: {text[:50]}...")

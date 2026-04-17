@@ -1,7 +1,5 @@
-from datetime import datetime
 from pathlib import Path
 import base64
-import re
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -11,9 +9,9 @@ from src.prompts.vision import VISION_SYSTEM_MSG
 from src.infrastructure.context import AppContext
 from src.config import settings
 
-from src.msg_assembler.telegram_file import download_file
 from src.database.models import LocalRawMessages
 from src.logger import logger
+from src.utils import rename_file
 
 
 MEDIA_DIR = settings.get_media_path('images')
@@ -27,11 +25,9 @@ def image_to_base64(filepath: Path) -> str:
         return base64_string
 
 
-async def image_describer(filepath: Path, msg_caption: str) -> dict:
-    async with AppContext(verbose=False) as ctx:
-        await ctx.use_model("vision")
-        bs64_string = image_to_base64(filepath)
-        return await describe_image(ctx.llm, bs64_string, msg_caption)
+async def image_describer(vision_model: AppContext, filepath: Path, msg_caption: str) -> dict:
+    bs64_string = image_to_base64(filepath)
+    return await describe_image(vision_model.llm, bs64_string, msg_caption)
 
 
 async def describe_image(llm: ChatOpenAI, bs64: str, msg_caption: str) -> dict:
@@ -46,20 +42,9 @@ async def describe_image(llm: ChatOpenAI, bs64: str, msg_caption: str) -> dict:
     structured_llm = llm.with_structured_output(VisionOutput)
     return await structured_llm.ainvoke([system_msg, hum_message])
 
-
-def rename_file(old_path: Path, new_name: str) -> Path:
-    name = "_".join([n.strip() for n in new_name.split()])
-    name = re.sub(r'[^\w]', '_', name)
-    if not name:
-        name = f'Файл_от_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}'
-    new_path = old_path.parent / f'{name}{old_path.suffix}'
-    old_path.rename(new_path)
-    return new_path
-
-
 async def process_photo_messages(
-        photo_msgs: list[LocalRawMessages],
-        extension: str = "jpeg"
+        vision_model: AppContext,
+        photo_msgs: list[LocalRawMessages]
         ) -> list[LocalRawMessages]:
     """Функция описания фото из базы данных."""
 
@@ -69,8 +54,8 @@ async def process_photo_messages(
         try:
             logger.info(f"Обрабатываем фото сообщение {msg.id}...")
 
-            photo_path = await download_file(msg.file_id, MEDIA_DIR, extension)
-            vision_response = await image_describer(photo_path, msg_caption)
+            photo_path = Path(msg.file_path)
+            vision_response = await image_describer(vision_model, photo_path, msg_caption)
 
             logger.info(f"Получено описание для сообщения {msg.id}: {vision_response.description[:50]}...")
             # Переименовываем

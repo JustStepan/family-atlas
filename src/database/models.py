@@ -1,9 +1,18 @@
-from sqlalchemy import Integer, String, ForeignKey
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from enum import Enum
+
+from sqlalchemy import Integer, String, JSON, Enum as SAEnum
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class AssembledSessionStatus(Enum):
+    READY = 'ready'
+    DONE = 'done'
+    ERROR = 'error'
+    PROCESSING = 'processing'
 
 
 class LocalRawMessages(Base):
@@ -15,7 +24,6 @@ class LocalRawMessages(Base):
     caption: Mapped[str | None]
     content: Mapped[str | None]
     created_at: Mapped[str] = mapped_column(String)
-    file_id: Mapped[str | None]
     file_mime_type: Mapped[str | None]
     file_name: Mapped[str | None]
     file_path: Mapped[str | None]
@@ -24,7 +32,7 @@ class LocalRawMessages(Base):
     msg_status: Mapped[str | None]
     message_thread: Mapped[str] = mapped_column(String)
     msg_type: Mapped[str] = mapped_column(String)
-    original_id: Mapped[int] = mapped_column(Integer)
+    tlg_msg_id: Mapped[int] = mapped_column(Integer)
     session_id: Mapped[int] = mapped_column(Integer)
     session_status: Mapped[str] = mapped_column(String)
 
@@ -37,7 +45,14 @@ class AssembledMessages(Base):
     __tablename__ = 'asmbld_messages'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    content: Mapped[str] = mapped_column(String)
+    summary: Mapped[str | None] = mapped_column(String)
+    obsidian_path: Mapped[str | None] = mapped_column(String)
+    tags: Mapped[list | None] = mapped_column(JSON, default=None)
+    status: Mapped[AssembledSessionStatus] = mapped_column(
+        SAEnum(AssembledSessionStatus),
+        default=AssembledSessionStatus.READY
+    )
+    raw_content: Mapped[str] = mapped_column(String)
+    content: Mapped[str | None] = mapped_column(String)
     session_id: Mapped[int] = mapped_column(Integer)
     message_thread: Mapped[str] = mapped_column(String)
-    session_status: Mapped[str] = mapped_column(String, default="ready")

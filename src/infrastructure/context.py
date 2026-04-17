@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from langchain_openai import ChatOpenAI
 from .llm_server import LlamaServer
@@ -9,12 +10,15 @@ class AppContext:
     verbose: bool = False
     _server: LlamaServer = field(init=False)
     _llm: ChatOpenAI | None = field(init=False, default=None)
+    _current_alias: str | None = field(init=False, default=None)
 
     def __post_init__(self):
         self._server = LlamaServer(verbose=self.verbose)
 
     async def use_model(self, alias: str) -> None:
-        await self._server.load(settings.models[alias])
+        if alias == self._current_alias:
+            return
+        await self._server.load(alias, settings.models[alias])
         self._llm = ChatOpenAI(
             model=alias,
             base_url=f"{settings.LLAMA_SERVER_URL}/v1",
@@ -22,6 +26,7 @@ class AppContext:
             temperature=0.1,
             max_tokens=settings.models[alias]["max_tokens"],
         )
+        self._current_alias = alias
 
     @property
     def llm(self) -> ChatOpenAI:
@@ -34,3 +39,8 @@ class AppContext:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._server.unload()
+
+@asynccontextmanager
+async def get_llm_model():
+    async with AppContext(verbose=False) as ctx:
+        yield ctx
