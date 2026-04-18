@@ -7,8 +7,8 @@ from telethon.tl.types import (
     MessageMediaDocument,
     DocumentAttributeAudio,
     DocumentAttributeVideo,
+    PeerChannel,
 )
-from telethon.tl.types import PeerChannel
 
 from src.config import settings
 from src.database.engine import ensure_db_initialized, get_db
@@ -53,13 +53,11 @@ async def download_and_get_content(msg_type: str, msg, client: TelegramClient) -
     doc = msg.media.document
     result = {"file_mime_type": doc.mime_type}
 
-    # Имя файла для документов
     for attr in doc.attributes:
         if hasattr(attr, "file_name"):
             result["file_name"] = attr.file_name
             break
 
-    # Определяем папку по типу
     folder = "voice" if msg_type == "voice" else "docs"
     dest = settings.get_media_path(folder)
     dest.mkdir(parents=True, exist_ok=True)
@@ -95,7 +93,6 @@ async def handle_forwarded(msg, client: TelegramClient) -> dict:
 
 
 async def get_last_tlg_msg_id() -> int:
-    # Берём максимальный tlg_msg_id из локальной БД как offset
     async with get_db() as session:
         result = await session.execute(
             select(func.max(LocalRawMessages.tlg_msg_id))
@@ -113,7 +110,6 @@ async def get_last_session_id(session) -> int:
 
 
 async def get_thread_last_msg(session, message_thread: str):
-    # Последнее сообщение конкретного треда — для логики сессий
     result = await session.execute(
         select(LocalRawMessages)
         .where(LocalRawMessages.message_thread == message_thread)
@@ -127,13 +123,11 @@ async def resolve_session_id(session, message_thread: str, msg_time: datetime) -
     last_msg = await get_thread_last_msg(session, message_thread)
 
     if last_msg is None:
-        # Первое сообщение в этом треде — новая сессия
         return await get_last_session_id(session) + 1
 
     threshold = settings.MSG_SESSION_THRESHOLD.get(message_thread)
 
     if threshold is None:
-        # Треды без порога (calendar, task) — каждое сообщение своя сессия
         return await get_last_session_id(session) + 1
 
     last_time = datetime.fromisoformat(str(last_msg.created_at))
@@ -157,14 +151,12 @@ async def collect_and_save():
     ) as client:
         new_messages = []
 
-        # Собираем сообщения из каждого треда отдельно
         for thread_id, thread_name in THREAD_MAPS.items():
             async for msg in client.iter_messages(
                 PeerChannel(channel_id=settings.FORUM_CHAT_ID),
                 reply_to=thread_id,
-                # min_id фильтрует сообщения старше последнего сохранённого
                 min_id=last_id,
-                limit=5,
+                limit=100,
             ):
                 new_messages.append((thread_name, msg))
 
@@ -172,7 +164,6 @@ async def collect_and_save():
             logger.info("Новых сообщений нет")
             return 0
 
-        # Сортируем по id чтобы сессии назначались в правильном порядке
         new_messages.sort(key=lambda x: x[1].id)
         logger.info(f"Получено {len(new_messages)} новых сообщений")
 
@@ -203,12 +194,16 @@ async def collect_and_save():
                 }
                 params.update(await download_and_get_content(msg_type, msg, client))
 
+                # caption — текст при медиа сообщении
+                if msg.message and msg_type != "text":
+                    if msg.fwd_from and len(msg.message) > 150:
+                        # длинный caption в пересланном = основной контент
+                        params["content"] = msg.message
+                    else:
+                        params["caption"] = msg.message
+
                 if msg.fwd_from:
                     params.update(await handle_forwarded(msg, client))
-
-                if msg.message and msg_type != "text":
-                    # caption — текст при медиа сообщении
-                    params["caption"] = msg.message
 
                 raw_msg, created = await get_or_create(
                     session=session,

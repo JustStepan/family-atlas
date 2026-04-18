@@ -81,10 +81,11 @@ async def process_voice_messages(
             logger.error(f"Ошибка STT: {e}")
             msg.msg_status = "error_stt"
 
-        finally:
             # Удаляем временные файлы в любом случае
+        finally:
             if audio_path and os.path.exists(audio_path):
                 os.remove(audio_path)
+                msg.file_path = None
             if wav_path and os.path.exists(wav_path):
                 os.remove(wav_path)
 

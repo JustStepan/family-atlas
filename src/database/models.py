@@ -1,18 +1,10 @@
-from enum import Enum
-
-from sqlalchemy import Integer, String, JSON, Enum as SAEnum
+from sqlalchemy import Integer, String, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
 
-
-class AssembledSessionStatus(Enum):
-    READY = 'ready'
-    DONE = 'done'
-    ERROR = 'error'
-    PROCESSING = 'processing'
 
 
 class LocalRawMessages(Base):
@@ -47,11 +39,9 @@ class AssembledMessages(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     summary: Mapped[str | None] = mapped_column(String)
     obsidian_path: Mapped[str | None] = mapped_column(String)
+    title: Mapped[str | None] = mapped_column(String)
     tags: Mapped[list | None] = mapped_column(JSON, default=None)
-    status: Mapped[AssembledSessionStatus] = mapped_column(
-        SAEnum(AssembledSessionStatus),
-        default=AssembledSessionStatus.READY
-    )
+    status: Mapped[str] = mapped_column(String, default="ready")
     raw_content: Mapped[str] = mapped_column(String)
     content: Mapped[str | None] = mapped_column(String)
     session_id: Mapped[int] = mapped_column(Integer)

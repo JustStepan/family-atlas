@@ -17,17 +17,16 @@ DOC_DIR.mkdir(parents=True, exist_ok=True)
 
 
 MIME_TO_HANDLER = {
-    # Фото
-    'image/jpeg': (process_photo_messages, 'jpeg'),
-    'image/png':  (process_photo_messages, 'png'),
-    'image/webp': (process_photo_messages, 'webp'),
-    'image/gif':  (process_photo_messages, 'gif'),
-    # Аудио
-    'audio/ogg':  (process_voice_messages, 'ogg'),
-    'audio/mpeg': (process_voice_messages, 'mp3'),
-    'audio/mp4':  (process_voice_messages, 'm4a'),
-    'audio/wav':  (process_voice_messages, 'wav'),
+    'image/jpeg': process_photo_messages,
+    'image/png':  process_photo_messages,
+    'image/webp': process_photo_messages,
+    'image/gif':  process_photo_messages,
+    'audio/ogg':  process_voice_messages,
+    'audio/mpeg': process_voice_messages,
+    'audio/mp4':  process_voice_messages,
+    'audio/wav':  process_voice_messages,
 }
+
 
 async def process_doc_messages(doc_msgs: list[LocalRawMessages], ctx: AppContext = None) -> list[LocalRawMessages]:
     """Функция сохранения документа из базы данных."""
@@ -35,11 +34,10 @@ async def process_doc_messages(doc_msgs: list[LocalRawMessages], ctx: AppContext
     for i, msg in enumerate(doc_msgs):
 
         if ctx and msg.file_mime_type in MIME_TO_HANDLER:
-            function, ext = MIME_TO_HANDLER[msg.file_mime_type]
-            doc_msgs[i] = (await function(ctx, [msg], ext))[0]
+            function = MIME_TO_HANDLER[msg.file_mime_type]
+            doc_msgs[i] = (await function(ctx, [msg]))[0]
             continue
 
-        # обрабатываем документ как документ
         if msg.file_name:
             filename = msg.file_name
         else:
@@ -48,7 +46,6 @@ async def process_doc_messages(doc_msgs: list[LocalRawMessages], ctx: AppContext
 
         try:
             logger.info(f"Обрабатываем сообщение с документом {msg.id}...")
-            
             doc_path = Path(msg.file_path)
             safe_name = re.sub(r'[^\w.]', '_', filename)
             new_path = doc_path.parent / safe_name

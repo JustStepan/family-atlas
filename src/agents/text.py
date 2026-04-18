@@ -4,7 +4,7 @@ from sqlalchemy import select
 from src.prompts.texts import TEXTS_SYSTEM_MSG
 from src.agents.schemas import TextSummarizerOutput
 from src.infrastructure.context import AppContext
-from src.database.models import AssembledMessages, AssembledSessionStatus
+from src.database.models import AssembledMessages
 from src.database.engine import get_db
 
 
@@ -12,7 +12,7 @@ async def get_assembled_msgs():
     async with get_db() as session:
         query = await session.execute(
             select(AssembledMessages)
-            .where(AssembledMessages.status == AssembledSessionStatus.READY)
+            .where(AssembledMessages.status == "ready")
         )
         ready_sessions = query.scalars().all()
         if ready_sessions: 
