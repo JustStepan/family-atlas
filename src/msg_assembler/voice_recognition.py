@@ -5,6 +5,10 @@ from functools import lru_cache
 
 import onnx_asr
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from src.agents.schemas import AudioNormalizer
+from src.prompts.audio_normalizer import AUDUO_NORMALIZER
+from src.infrastructure.context import AppContext
 from src.config import settings
 from src.database.models import LocalRawMessages
 from src.logger import logger
@@ -55,8 +59,22 @@ def transcribe(wav_path: Path) -> str:
     return model.recognize(str(wav_path))
 
 
+async def voice_normalizer(txt: str, ctx: AppContext) -> str:
+    """Нормализует аудиорасшифровку к нормальной литературной речи"""
+    try:
+        system_msg = SystemMessage(content=AUDUO_NORMALIZER)
+        hum_msg = HumanMessage(content=f'Обработай представленный текст\n{txt}')
+        structured_llm = ctx.llm.with_structured_output(AudioNormalizer)
+        norm_message = await structured_llm.ainvoke([system_msg, hum_msg])
+        return norm_message.content
+    except Exception as e:
+        logger.error(f'Ошибка нормализации аудио: {e}')
+        return txt
+    
+
 async def process_voice_messages(
-    voice_msgs: list[LocalRawMessages]
+    voice_msgs: list[LocalRawMessages],
+    ctx: AppContext
     ) -> list[LocalRawMessages]:
     """Основная функция обработки голосовых сообщений"""
     for msg in voice_msgs:
@@ -74,7 +92,7 @@ async def process_voice_messages(
             logger.info(f"Транскрипция: {text[:50]}...")
 
             # Обновляем запись в БД
-            msg.content = text
+            msg.content = await voice_normalizer(text, ctx)
             msg.msg_status = "transcribed"
 
         except Exception as e:

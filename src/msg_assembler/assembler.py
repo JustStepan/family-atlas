@@ -38,20 +38,22 @@ async def prepare_msgs():
 
         # нужен ли vision для документов
         vision_in_docs = any(m.file_mime_type in MIME_TO_HANDLER for m in docs_msgs)
-
-        if voice_msgs:
-            logger.info(f'Обрабатываем аудио сообщения: {len(voice_msgs)} шт.')
-            voice_msgs = await process_voice_messages(voice_msgs)
-
-        if photo_msgs or vision_in_docs:
+        # нужнна ли LLM для обработки контента?
+        if voice_msgs or photo_msgs or vision_in_docs:
             async with get_llm_model() as ctx:
-                await ctx.use_model("vision")
-                if photo_msgs:
-                    logger.info(f'Обрабатываем фото: {len(photo_msgs)} шт.')
-                    photo_msgs = await process_photo_messages(ctx, photo_msgs)
-                if docs_msgs:
-                    logger.info(f'Обрабатываем документы c vision: {len(docs_msgs)} шт.')
-                    docs_msgs = await process_doc_messages(docs_msgs, ctx)
+                if voice_msgs:
+                    await ctx.use_model("GigaChat")
+                    logger.info(f'Обрабатываем аудио: {len(voice_msgs)} шт.')
+                    voice_msgs = await process_voice_messages(voice_msgs, ctx)
+
+                if photo_msgs or vision_in_docs:
+                    await ctx.use_model("vision")
+                    if photo_msgs:
+                        logger.info(f'Обрабатываем фото: {len(photo_msgs)} шт.')
+                        photo_msgs = await process_photo_messages(ctx, photo_msgs)
+                    if docs_msgs:
+                        logger.info(f'Обрабатываем документы c vision: {len(docs_msgs)} шт.')
+                        docs_msgs = await process_doc_messages(docs_msgs, ctx)
 
         elif docs_msgs: 
             logger.info(f'Обрабатываем документы (pdf, zip, etc): {len(docs_msgs)} шт.')
@@ -119,6 +121,8 @@ async def assembler(session, messages) -> list[int]:
 
         if msg.session_id == last_session_id:
             new_data["content"] += f'\n\nЕщё одно сообщение этой темы:\n{content}'
+            if msg.file_path:
+                new_data["attachments"].append(msg.file_path)
         else:
             if last_session_id is not None:
                 session_data.append(new_data)
@@ -126,15 +130,16 @@ async def assembler(session, messages) -> list[int]:
                 "message_thread": msg.message_thread,
                 "content": content,
                 "session_id": msg.session_id,
+                "created_at": msg.created_at,
+                "author_name": msg.author_name,
+                "attachments": [msg.file_path] if msg.file_path else [],
             }
             last_session_id = msg.session_id
 
-    # добавляем последнюю сессию
     if new_data:
         session_data.append(new_data)
 
     for ss in session_data:
-        # проверяем что такая сессия ещё не собрана
         existing = await session.execute(
             select(AssembledMessages).filter_by(session_id=ss["session_id"])
         )
@@ -146,6 +151,9 @@ async def assembler(session, messages) -> list[int]:
             raw_content=ss["content"],
             session_id=ss["session_id"],
             message_thread=ss["message_thread"],
+            created_at=ss["created_at"],
+            author_name=ss["author_name"],
+            attachments=ss["attachments"] or None,
         )
         session.add(assembled)
         logger.debug(f'Добавлена сессия {ss["session_id"]}')

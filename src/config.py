@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+import re
 from typing import Dict
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,12 +40,12 @@ class Settings(BaseSettings):
     LLAMA_SERVER_PORT: int = 8080
 
     # STT_Модели
-    STT_MODEL: str = 'nemo-conformer-tdt' # gigaam-v3-e2e-rnnt
+    STT_MODEL: str = "nemo-conformer-tdt"
     STT_MODEL_PATH: str = f"{BASE_DIR}/llm_models/stt_models/parakeet-tdt-0.6b-v3-int8/"
-    # VISION_MMPROJ_FILE: str = "vision/mmproj-Qwen3.5-4B-BF16.gguf"
 
     # Режим подключения
     CONNECTION_TYPE: str = "offline"
+    AGENT_ATTEMPTS: int = 2
 
     # --- вычисляемые пути ---
     def get_media_path(self, msg_type: str) -> Path:
@@ -52,14 +53,43 @@ class Settings(BaseSettings):
         year = str(now.year)
         month = now.strftime("%m")
         return self.OBSIDIAN_VAULT_PATH / 'files' / msg_type / year / f"{MONTH_MAPS[month]}"
+    
+    def get_note_path(self, thread: str, created_at: str, title: str | None = None) -> Path:
+        date = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+        month = date.strftime("%m")
+        year = date.strftime("%Y")
+        
+        if title:
+            raw_title = re.sub(r'[^\w\s]', '', title)
+            ready_title = raw_title.strip().replace(' ', '_')[:50]
+            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"{ready_title}.md"
+        
+        if thread == "calendar":
+            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}.md"
+        
+        if thread == "task":
+            week = date.isocalendar()[1]
+            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"неделя-{week}.md"
+
+        raise ValueError(f"Неизвестный тред: {thread}")
 
     @property
     def models(self) -> dict:
         return {
-            "agent": {
+            "GigaChat": {
                 "file": "GigaChat3.1-10B-A1.8B-q6_K.gguf",
                 "args": ["--reasoning", "off", "--ctx-size", "32768"],
-                "max_tokens": 2048,
+                "max_tokens": 4096,
+            },
+            "Gemma-4": {
+                "file": "supergemma4-26b-uncensored-fast-v2-Q4_K_M.gguf",
+                "args": ["--reasoning", "off", "--ctx-size", "50000"],
+                "max_tokens": 4096,
+            },
+            "Qwen3.6": {
+                "file": "Qwen3.6-35B-A3B-UD-IQ3_S.gguf",
+                "args": ["--reasoning", "off", "--ctx-size", "50000"],
+                "max_tokens": 8000,
             },
             "vision": {
                 "file": "Qwen3-VL-4B-Instruct-Q6_K.gguf",

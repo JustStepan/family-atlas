@@ -37,12 +37,28 @@ class AssembledMessages(Base):
     __tablename__ = 'asmbld_messages'
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    author_name: Mapped[str | None] = mapped_column(String)
     summary: Mapped[str | None] = mapped_column(String)
     obsidian_path: Mapped[str | None] = mapped_column(String)
     title: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String)
+    attachments: Mapped[list | None] = mapped_column(JSON, default=None)
     tags: Mapped[list | None] = mapped_column(JSON, default=None)
     status: Mapped[str] = mapped_column(String, default="ready")
+    people_mentioned: Mapped[list | None] = mapped_column(JSON, default=None)
     raw_content: Mapped[str] = mapped_column(String)
     content: Mapped[str | None] = mapped_column(String)
     session_id: Mapped[int] = mapped_column(Integer)
     message_thread: Mapped[str] = mapped_column(String)
+
+
+class Person(Base):
+    __tablename__ = 'persons'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    telegram_id: Mapped[int | None] = mapped_column(Integer)
+    role: Mapped[str | None] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(String)
+    first_seen: Mapped[str] = mapped_column(String)
+    last_seen: Mapped[str] = mapped_column(String)
