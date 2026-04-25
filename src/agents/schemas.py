@@ -15,6 +15,7 @@ class FamilyAtlasState(TypedDict):
     attachments: list[str]
     # выходные — опциональные (заполняются узлами)
     title: NotRequired[str]
+    related: NotRequired[list[str]]
     summary: NotRequired[str]
     content: NotRequired[str]
     tags: NotRequired[list[str]]

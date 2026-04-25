@@ -56,16 +56,14 @@ class Settings(BaseSettings):
     
     def get_note_path(self, thread: str, created_at: str, title: str | None = None) -> Path:
         date = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+        day = date.strftime("%d")
         month = date.strftime("%m")
         year = date.strftime("%Y")
         
         if title:
             raw_title = re.sub(r'[^\w\s]', '', title)
             ready_title = raw_title.strip().replace(' ', '_')[:50]
-            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"{ready_title}.md"
-        
-        if thread == "calendar":
-            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}.md"
+            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"{day}-{ready_title}.md"
         
         if thread == "task":
             week = date.isocalendar()[1]
@@ -78,24 +76,42 @@ class Settings(BaseSettings):
         return {
             "GigaChat": {
                 "file": "GigaChat3.1-10B-A1.8B-q6_K.gguf",
-                "args": ["--reasoning", "off", "--ctx-size", "32768"],
+                "args": [
+                    "--reasoning", "off",
+                    "--ctx-size", "16384",
+                ],
+                "max_tokens": 2048,
+            },
+            "Gpt-Oss-20b": {
+                "file": "gpt-oss-20b-Q8_0.gguf",
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                ],
                 "max_tokens": 4096,
             },
             "Gemma-4": {
-                "file": "supergemma4-26b-uncensored-fast-v2-Q4_K_M.gguf",
-                "args": ["--reasoning", "off", "--ctx-size", "50000"],
+                "file": "gemma-4-26B-A4B-Claude-Distill-APEX-I-Compact.gguf",
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                ],
                 "max_tokens": 4096,
             },
             "Qwen3.6": {
-                "file": "Qwen3.6-35B-A3B-UD-IQ3_S.gguf",
-                "args": ["--reasoning", "off", "--ctx-size", "50000"],
-                "max_tokens": 8000,
+                "file": "Qwen3.6-35B-A3B-APEX-I-Compact.gguf",
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                ],
+                "max_tokens": 4096,
             },
             "vision": {
                 "file": "Qwen3-VL-4B-Instruct-Q6_K.gguf",
                 "args": [
                     "--mmproj", str(self.llm_model_path / "mmproj-Qwen3-VL-4B-Instruct-F16.gguf"),
                     "--ctx-size", "8192",
+                    "--reasoning", "off",
                 ],
                 "max_tokens": 1024,
             },

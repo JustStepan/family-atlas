@@ -16,16 +16,21 @@ async def start_agent(graph: StateGraph):
         await ctx.use_model("Qwen3.6")
         async with get_db() as session:
             ready_sessions = await get_assembled_msgs(session)
+
+            sessions_data = [
+                {
+                    "session_id": msg.session_id,
+                    "message_thread": msg.message_thread,
+                    "raw_content": msg.raw_content,
+                    "created_at": msg.created_at,
+                    "attachments": msg.attachments or [],
+                    "author_name": msg.author_name,
+                }
+                for msg in ready_sessions
+            ]
             
-            for assembled_msg in ready_sessions:
-                state = FamilyAtlasState(
-                    session_id=assembled_msg.session_id,
-                    message_thread=assembled_msg.message_thread,
-                    raw_content=assembled_msg.raw_content,
-                    created_at=assembled_msg.created_at,
-                    attachments=assembled_msg.attachments or [],
-                    author_name=assembled_msg.author_name,
-                )
+            for assembled_msg in sessions_data:
+                state = FamilyAtlasState(**assembled_msg)
                 await graph.ainvoke(
                     state,
                     config={
