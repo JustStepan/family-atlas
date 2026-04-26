@@ -1,4 +1,5 @@
 from itertools import chain
+from collections import Counter
 
 from sqlalchemy import select
 
@@ -26,13 +27,21 @@ async def get_assembled_msgs(session):
     return ready_sessions
 
 
-async def get_existing_tags(session) -> list[str]:
-    query = await session.execute(
+def first_n_objects(lst: list[str], amount: int) -> list[str]:
+    count_obj = Counter(lst).most_common(amount)
+    return [obj[0] for obj in count_obj]
+
+
+async def get_existing_tags_and_persons(session) -> tuple[list[str], list[str]]:
+    tags_query = await session.execute(
         select(AssembledMessages.tags))
-    result = [tags for tags in query.scalars().all() if tags is not None]
-    return list(set(chain.from_iterable(result)))
-
-
-async def get_known_persons(session) -> list[str]:
-    query = await session.execute(select(Person.name))
-    return list(set(query.scalars().all()))
+    persons_query = await session.execute(
+        select(AssembledMessages.people_mentioned))
+    
+    tags = [t for t in tags_query.scalars().all() if t is not None]
+    persons = [p for p in persons_query.scalars().all() if p is not None]
+    
+    return (
+        first_n_objects(chain.from_iterable(tags), 30),
+        first_n_objects(chain.from_iterable(persons), 30)
+    )

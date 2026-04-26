@@ -10,7 +10,7 @@ def graph_builder():
     graph.add_node("d_n_c_writer", nd.diary_note_calend_file_writer)
     graph.add_node("t_writer", nd.task_file_writer)
     graph.add_node("data_base_upd", nd.db_updater)
-    graph.add_node("related", nd.find_ralatives)
+    graph.add_node("related", nd.find_relatives)
 
     graph.add_edge(START, "analyzer")
     graph.add_edge("analyzer", "related")

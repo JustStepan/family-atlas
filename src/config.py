@@ -67,7 +67,7 @@ class Settings(BaseSettings):
         
         if thread == "task":
             week = date.isocalendar()[1]
-            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"неделя-{week}.md"
+            return self.OBSIDIAN_VAULT_PATH / thread / year / f"{month}-{MONTH_MAPS[month]}" / f"{week}-неделя.md"
 
         raise ValueError(f"Неизвестный тред: {thread}")
 

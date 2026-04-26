@@ -6,14 +6,14 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy import update
 
 from src.database.models import AssembledMessages
-from src.database.utils import get_existing_tags, get_known_persons
+from src.database.utils import get_existing_tags_and_persons
 from src.agents.schemas import FamilyAtlasState, choose_state
 from src.logger import logger
 from src.config import settings
 
 
 async def assembld_text_analyzer(state: FamilyAtlasState, config: RunnableConfig) -> dict:
-    logger.info(f"Начинаем обра,отку сессии: {state["session_id"]} - {state["message_thread"]}")
+    logger.info(f"Начинаем обработку сессии: {state["session_id"]} - {state["message_thread"]}")
 
     tread_type = state["message_thread"]
     system_prompt, pdtc_output = choose_state(tread_type)
@@ -22,8 +22,7 @@ async def assembld_text_analyzer(state: FamilyAtlasState, config: RunnableConfig
     llm = config["configurable"]["llm"]
     session = config["configurable"]["session"]
 
-    existing_tags = await get_existing_tags(session)
-    known_persons = await get_known_persons(session)
+    existing_tags, known_persons = await get_existing_tags_and_persons(session)
     logger.info(f"Передаем на обработку существующие теги ({len(existing_tags)} шт.) и персоналии ({len(known_persons)} шт.)")
 
     created_at = state["created_at"]
@@ -59,10 +58,11 @@ def thread_router(state: FamilyAtlasState) -> str:
 def get_frontmatter(state: FamilyAtlasState) -> str:
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
-    people_yaml = "\n".join(f"  - {p}" for p in people)
+    people_yaml = "\n".join(f'  - "[[{p}]]"' for p in people)
     related = state.get('related') or []
-    related_yaml = "\n".join(f"  - \"[[{Path(r).stem}]]\"" for r in related)
+    related_yaml = "\n".join(f'  - \"[[{Path(r).stem}]]\"' for r in related)
 
+    logger.info(f"Frontmatter: {len(state['tags'])} тегов, {len(people)} персон, {len(related)} related")
     return (
         "---\n"
         f"author: {state['author_name']}\n"
@@ -82,6 +82,7 @@ def create_file(obsidian_path: Path, content: str) -> dict:
             return {"obsidian_path": str(obsidian_path), "status": "exists"}
 
         obsidian_path.write_text(content, encoding="utf-8")
+        logger.info(f"Файл {obsidian_path.name} успешно записан в хранилище")
         return {
             "obsidian_path": str(obsidian_path),
             "status": "written"
@@ -137,7 +138,8 @@ def add_frontmatter_fields(obsidian_path: Path, tags: list[str], people: list[st
 
     try:
         with open(obsidian_path, "w", encoding="utf-8") as f:
-            fm.dump(post, f)
+            f.write(fm.dumps(post))
+            logger.info(f"Задача добавлена в существующий файл: {obsidian_path.name}")
             return {
                 "obsidian_path": str(obsidian_path),
                 "status": "rewritten"
@@ -152,7 +154,7 @@ def add_frontmatter_fields(obsidian_path: Path, tags: list[str], people: list[st
 
 def add_to_file(obsidian_path, content) -> dict:
     try:
-        with open(obsidian_path, "a") as f:
+        with open(obsidian_path, "a", encoding="utf-8") as f:
             f.write(content)
             return {
                 "obsidian_path": str(obsidian_path),
@@ -166,6 +168,20 @@ def add_to_file(obsidian_path, content) -> dict:
         }
 
 
+def add_task_fields(state: FamilyAtlasState) -> str:
+    body = ''
+    checkbox = "- [x]" if state.get("is_done") else "- [ ]"
+    body += f'\n{checkbox} **{state["title"]}**'
+    if state.get('deadline'):
+        body += f'\n📅 Дедлайн: {state["deadline"]}'
+    if state.get('priority'):
+        body += f'\n⚡ Приоритет: {state["priority"]}'
+    body += f"\n{state['content']}"
+    if attachments := state.get("attachments") or []:
+        links = "\n".join(f"![[{Path(p).name}]]" for p in attachments)
+        body += f"\n\n### Вложения\n{links}"
+    return body + '\n\n---'
+
 async def task_file_writer(state: FamilyAtlasState) -> dict:
     obsidian_path = settings.get_note_path(
         state["message_thread"],
@@ -176,11 +192,7 @@ async def task_file_writer(state: FamilyAtlasState) -> dict:
     obsidian_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Формируем контент
-    body = f"# {state['title']}\n\n{state['summary']}"
-    if attachments := state.get("attachments") or []:
-        links = "\n".join(f"![[{Path(p).name}]]" for p in attachments)
-        body += f"\n\n## Вложения\n{links}"
-
+    body = add_task_fields(state)
     # если файл не существует:
     if not obsidian_path.exists():
         frontmatter = get_frontmatter(state)
@@ -225,10 +237,12 @@ async def db_updater(state: FamilyAtlasState, config: RunnableConfig) -> dict:
             .where(AssembledMessages.session_id == state["session_id"])
             .values(status="error")
         )
+        await session.commit()
 
     return {}
 
 
-async def find_ralatives(state: FamilyAtlasState) -> dict:
+async def find_relatives(state: FamilyAtlasState) -> dict:
     """Заглушка с тестовой заметкой"""
+    logger.info(f"find_relatives: заглушка, session_id={state['session_id']}")
     return {"related": ['/Users/stepan/Documents/Obsidian_test_vault/Test_note.md']}
