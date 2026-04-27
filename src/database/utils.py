@@ -3,7 +3,8 @@ from collections import Counter
 
 from sqlalchemy import select
 
-from src.database.models import AssembledMessages, Person
+from src.database.engine import get_db
+from src.database.models import AssembledMessages
 
 
 async def get_or_create(session, model, search_params, create_params=None):
@@ -45,3 +46,9 @@ async def get_existing_tags_and_persons(session) -> tuple[list[str], list[str]]:
         first_n_objects(chain.from_iterable(tags), 30),
         first_n_objects(chain.from_iterable(persons), 30)
     )
+
+
+async def get_summaries() -> AssembledMessages:
+    async with get_db() as session:
+        summaries = await session.execute(select(AssembledMessages.summary))
+        return summaries.scalars().all()

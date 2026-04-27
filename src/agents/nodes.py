@@ -58,7 +58,7 @@ def thread_router(state: FamilyAtlasState) -> str:
 def get_frontmatter(state: FamilyAtlasState) -> str:
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
-    people_yaml = "\n".join(f'  - "[[{p}]]"' for p in people)
+    people_yaml = "\n".join(f"  - {person_to_wikilink(p)}" for p in people)
     related = state.get('related') or []
     related_yaml = "\n".join(f'  - \"[[{Path(r).stem}]]\"' for r in related)
 
@@ -130,10 +130,16 @@ def add_addition_calend_fields(state: FamilyAtlasState) -> str:
     return add_str
 
 
+def person_to_wikilink(name: str) -> str:
+    if name.startswith("[["):
+        return name
+    return f'"[[persons/{name}]]"'
+
+
 def add_frontmatter_fields(obsidian_path: Path, tags: list[str], people: list[str], body):
     post = fm.load(obsidian_path)
     post["tags"] = list(set((post.get("tags") or []) + tags))
-    post["people_mentioned"] = list(set((post.get("people_mentioned") or []) + people))
+    post["people_mentioned"] = list(set((post.get("people_mentioned") or []) + [person_to_wikilink(p) for p in people]))
     post.content += "\n\n" + body
 
     try:

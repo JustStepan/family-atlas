@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     STT_MODEL: str = "nemo-conformer-tdt"
     STT_MODEL_PATH: str = f"{BASE_DIR}/llm_models/stt_models/parakeet-tdt-0.6b-v3-int8/"
 
+    # Embedding_Модели
+    EMBEDDING_MODEL: str = "sergeyzh/LaBSE-ru-turbo"
+    EMBEDDING_MODEL_PATH: str = str(BASE_DIR / "llm_models" / "embeddings" / "LaBSE-ru-turbo")
+
     # Режим подключения
     CONNECTION_TYPE: str = "offline"
     AGENT_ATTEMPTS: int = 2

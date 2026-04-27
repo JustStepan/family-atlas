@@ -42,6 +42,7 @@ class AssembledMessages(Base):
     obsidian_path: Mapped[str | None] = mapped_column(String)
     title: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String)
+    embedding: Mapped[list | None] = mapped_column(JSON, default=None)
     attachments: Mapped[list | None] = mapped_column(JSON, default=None)
     tags: Mapped[list | None] = mapped_column(JSON, default=None)
     status: Mapped[str] = mapped_column(String, default="ready")
