@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     CONNECTION_TYPE: str = "offline"
     AGENT_ATTEMPTS: int = 2
 
+    # Конфиг для родственных заметок
+    BM25_THRESHHOLD: float = 2.0
+    EMBD_THRESHHOLD: float = 0.8
+
     # --- вычисляемые пути ---
     def get_media_path(self, msg_type: str) -> Path:
         now = datetime.now()

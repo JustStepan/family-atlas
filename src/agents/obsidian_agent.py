@@ -8,6 +8,7 @@ from src.agents.schemas import FamilyAtlasState
 from src.database.utils import get_assembled_msgs
 from src.database.engine import ensure_db_initialized, get_db
 from src.infrastructure.context import AppContext
+from src.infrastructure.embeddings import embedding_model
 
 
 async def start_agent(graph: StateGraph):
@@ -37,6 +38,7 @@ async def start_agent(graph: StateGraph):
                         "configurable": {
                             "llm": ctx.llm,
                             "session": session,
+                            "embedding_model": embedding_model
                         }
                     }
                 )

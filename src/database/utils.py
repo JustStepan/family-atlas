@@ -48,7 +48,23 @@ async def get_existing_tags_and_persons(session) -> tuple[list[str], list[str]]:
     )
 
 
-async def get_summaries() -> AssembledMessages:
-    async with get_db() as session:
-        summaries = await session.execute(select(AssembledMessages.summary))
-        return summaries.scalars().all()
+async def get_summaries(session) -> tuple[AssembledMessages]:
+    result = await session.execute(
+        select(
+            AssembledMessages.session_id,
+            AssembledMessages.summary,
+            AssembledMessages.obsidian_path,
+            AssembledMessages.embedding,
+        )
+        .where(AssembledMessages.summary.isnot(None))
+        .where(AssembledMessages.obsidian_path.isnot(None))
+        .where(AssembledMessages.embedding.isnot(None))
+    )
+    rows = result.all()
+    if not rows:
+        return [], [], [], []
+    session_ids = [row[0] for row in rows]
+    summaries = [row[1] for row in rows]
+    obsidian_path = [row[2] for row in rows]
+    embeddings = [row[3] for row in rows]
+    return session_ids, summaries, obsidian_path, embeddings

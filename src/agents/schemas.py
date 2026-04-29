@@ -37,6 +37,11 @@ class AudioNormalizer(BaseModel):
     content: str = Field(description="Результат нормализации текста, транскрибированного из аудио сообщения. Выполнено согласно промпта")
 
 
+class RelatedNotesFinder(BaseModel):
+    """Модель для получения id заметок/сессий по суммари"""
+    session_ids: list[int] = Field(description="Результат сравнения summary исходной заметки и session_summary других заметок. Возвращаются только номера id связанных заметок")
+
+
 class SessionBaseOutput(BaseModel):
     """Базовая модель получения финальных данных из ассемблированных сессий
     На вход подается assembled messages соответствующей модели"""
@@ -96,6 +101,7 @@ SESSION_PROMPT_MAP = {
     "diary":    (agent_prompt.DIARY_PROMPT,    SessionBaseOutput),
     "calendar": (agent_prompt.CALENDAR_PROMPT, SessionCalendarOutput),
     "task":     (agent_prompt.TASK_PROMPT,     SessionTaskOutput),
+    "find_relatives": (agent_prompt.FIND_RELATIVES, RelatedNotesFinder)
 }
 
 
