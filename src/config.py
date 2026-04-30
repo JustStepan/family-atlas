@@ -80,6 +80,10 @@ class Settings(BaseSettings):
         raise ValueError(f"Неизвестный тред: {thread}")
 
     @property
+    def persons_path(self) -> Path:
+        return self.OBSIDIAN_VAULT_PATH / "persons"
+
+    @property
     def models(self) -> dict:
         return {
             "GigaChat": {

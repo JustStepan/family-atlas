@@ -24,8 +24,40 @@ async def get_assembled_msgs(session):
     )
     ready_sessions = query.scalars().all()
     if ready_sessions: 
-        print(f'получено {len(ready_sessions)} сообщений')
+        print(f'Получено {len(ready_sessions)} ready-сообщений')
     return ready_sessions
+
+
+async def get_analyzed_msgs(session) -> list[dict]:
+    query = await session.execute(
+        select(AssembledMessages)
+        .where(AssembledMessages.status == "analyzed")
+    )
+    rows = query.scalars().all()
+    if rows:
+        print(f'Получено {len(rows)} analyzed-сообщений')
+    return [
+        {
+            "session_id": m.session_id,
+            "message_thread": m.message_thread,
+            "created_at": m.created_at,
+            "author_name": m.author_name,
+            "title": m.title,
+            "summary": m.summary,
+            "content": m.content,
+            "tags": m.tags or [],
+            "people_mentioned": m.people_mentioned or [],
+            "related": m.related or [],
+            "attachments": m.attachments or [],
+            "obsidian_path": m.obsidian_path,
+            "deadline": None,
+            "is_done": False,
+            "priority": None,
+            "event_time": None,
+            "location": None,
+        }
+        for m in rows
+    ]
 
 
 def first_n_objects(lst: list[str], amount: int) -> list[str]:
@@ -48,7 +80,7 @@ async def get_existing_tags_and_persons(session) -> tuple[list[str], list[str]]:
     )
 
 
-async def get_summaries(session) -> tuple[AssembledMessages]:
+async def get_summaries(session) -> dict[str, list]:
     result = await session.execute(
         select(
             AssembledMessages.session_id,
@@ -62,9 +94,11 @@ async def get_summaries(session) -> tuple[AssembledMessages]:
     )
     rows = result.all()
     if not rows:
-        return [], [], [], []
-    session_ids = [row[0] for row in rows]
-    summaries = [row[1] for row in rows]
-    obsidian_path = [row[2] for row in rows]
-    embeddings = [row[3] for row in rows]
-    return session_ids, summaries, obsidian_path, embeddings
+        return {}
+
+    return {
+        "session_ids": [row[0] for row in rows],
+        "summaries": [row[1] for row in rows],
+        "obsidian_path": [row[2] for row in rows],
+        "embeddings": [row[3] for row in rows]
+    }

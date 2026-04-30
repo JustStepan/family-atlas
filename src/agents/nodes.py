@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import frontmatter as fm
@@ -71,11 +72,12 @@ def thread_router(state: FamilyAtlasState) -> str:
 
 
 def get_frontmatter(state: FamilyAtlasState) -> str:
+
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
     people_yaml = "\n".join(f"  - {person_to_wikilink(p)}" for p in people)
     related = state.get("related") or []
-    related_yaml = "\n".join(f'  - "[[{Path(r).stem}]]"' for r in related)
+    related_yaml = "\n".join(f'  - "[[{r}]]"' for r in related)
 
     logger.info(
         f"Frontmatter: {len(state['tags'])} тегов, {len(people)} персон, {len(related)} related"
@@ -143,7 +145,7 @@ def add_addition_calend_fields(state: FamilyAtlasState) -> str:
 def person_to_wikilink(name: str) -> str:
     if name.startswith("[["):
         return f'"{name}"'
-    return f"[[persons/{name}]]"
+    return f'"[[persons/{name}]]"'
 
 
 def add_frontmatter_fields(
@@ -234,6 +236,14 @@ async def db_updater(state: FamilyAtlasState, config: RunnableConfig) -> dict:
     embedding_model = config["configurable"]["embedding_model"]
     embedding = embedding_model.encode(state.get("summary")).tolist()
 
+    # вычисляем путь
+    thread = state["message_thread"]
+    if thread == "task":
+        obsidian_path = str(settings.get_note_path(thread, state["created_at"]))
+    else:
+        obsidian_path = str(settings.get_note_path(thread, state["created_at"], state.get("title")))
+
+    related = json.dumps(state.get("related"), ensure_ascii=False) if state.get("related") else None
     try:
         await session.execute(
             update(AssembledMessages)
@@ -244,26 +254,22 @@ async def db_updater(state: FamilyAtlasState, config: RunnableConfig) -> dict:
                 tags=state.get("tags"),
                 content=state.get("content"),
                 people_mentioned=state.get("people_mentioned"),
-                obsidian_path=state.get("obsidian_path"),
+                obsidian_path=obsidian_path,
                 embedding=embedding,
-                status="done",
+                related=related,
+                status="analyzed",
             )
         )
         await session.commit()
-        logger.info(
-            f'Assembled сообщение {state["session_id"]} сохранено в БД'
-        )
+        logger.info(f'Assembled сообщение {state["session_id"]} сохранено в БД')
     except Exception as e:
-        logger.error(
-            f"Во время сохранения обработанного assembled сообщения в БД произошла ошибка {e}"
-        )
+        logger.error(f"Ошибка сохранения: {e}")
         await session.execute(
             update(AssembledMessages)
             .where(AssembledMessages.session_id == state["session_id"])
             .values(status="error")
         )
         await session.commit()
-
     return {}
 
 
@@ -285,8 +291,9 @@ async def find_relatives(
 
     session = config["configurable"]["session"]
 
-    session_ids, summaries, obsidian_paths, embeddings = await get_summaries(session)
-    if not summaries:
+    summ_data = await get_summaries(session)
+    # session_ids, summaries, obsidian_paths, embeddings
+    if not summ_data.get("summaries"):
         return {"related": []}
 
     embedding_model = config["configurable"]["embedding_model"]
@@ -295,7 +302,11 @@ async def find_relatives(
     # важно: индексы ищутся через UNION bm25 и embeddings результатов.
     # Позже, когда будет много заметок можно изменить логику поиска релевантных индексов
     candidates_idxs = find_candidates(
-        state["summary"], summaries, embeddings,  morph, embedding_model
+        state["summary"],
+        summ_data.get("summaries"),
+        summ_data.get("embeddings"),
+        morph,
+        embedding_model,
     )
     if not candidates_idxs:
         return {"related": []}
@@ -305,24 +316,25 @@ async def find_relatives(
     # Фирмируем системное сообщение
     system_msg = SystemMessage(content=system_prompt)
     candidates = get_candidate_summaries(
-        candidates_idxs, session_ids, summaries
+        candidates_idxs, summ_data.get("session_ids"), summ_data.get("summaries")
     )
     # Фирмируем сообщение пользователя
-    hum_msg = HumanMessage(content=(
-        f"Summary исходного сообщения:\n{state['summary']}\n\n"
-        f"Список кандидатов для сравнения:\n{candidates}"
-    ))
+    hum_msg = HumanMessage(
+        content=(
+            f"Summary исходного сообщения:\n{state['summary']}\n\n"
+            f"Список кандидатов для сравнения:\n{candidates}"
+        )
+    )
     # задаем pydantic схему для LLM вывода
     structured_llm = llm.with_structured_output(pdtc_output)
     result_ids = await structured_llm.ainvoke([system_msg, hum_msg])
     if not result_ids.session_ids:
         return {"related": []}
 
-    related = []
-    for sid in result_ids.session_ids:
-        if sid in session_ids:
-            idx = session_ids.index(sid)
-            related.append(f'{Path(obsidian_paths[idx]).stem}')
+    s_id_to_path = dict(zip(summ_data["session_ids"], summ_data["obsidian_path"]))
+    related = [Path(s_id_to_path[sid]).stem for sid in result_ids.session_ids if sid in s_id_to_path]
 
-    logger.info(f"find_relatives: найдено {len(related)} связанных заметок для session_id={state['session_id']}")
+    logger.info(
+        f"find_relatives: найдено {len(related)} связанных заметок для session_id={state['session_id']}"
+    )
     return {"related": related}
