@@ -159,8 +159,8 @@ OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
 |`EMBEDDING_MODEL_PATH`|`llm_models/embeddings/...`|Локальный путь|
 |`LLAMA_SERVER_URL`|`http://localhost:8080`|URL llama-server|
 |`AGENT_ATTEMPTS`|`2`|Попытки при ошибке LLM|
-|`BM25_THRESHHOLD`|`2.0`|Порог BM25 для related|
-|`EMBD_THRESHHOLD`|`0.8`|Порог cosine similarity|
+|`BM25_THRESHOLD`|`2.0`|Порог BM25 для related|
+|`EMBD_THRESHOLD`|`0.8`|Порог cosine similarity|
 |`MSG_SESSION_THRESHOLD`|`{"notes": 5, "diary": 10}`|Минуты между сессиями одного треда|
 
 LLM модели настраиваются в `settings.models` — словарь с именем GGUF файла, аргументами llama-server и `max_tokens`.

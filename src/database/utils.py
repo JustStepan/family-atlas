@@ -50,11 +50,16 @@ async def get_analyzed_msgs(session) -> list[dict]:
             "related": m.related or [],
             "attachments": m.attachments or [],
             "obsidian_path": m.obsidian_path,
-            "deadline": None,
-            "is_done": False,
-            "priority": None,
-            "event_time": None,
-            "location": None,
+            # calendar
+            "event_time": m.event_time,
+            "event_end_time": m.event_end_time,
+            "location": m.location,
+            "is_recurring": m.is_recurring,
+            "google_calendar_link": m.google_calendar_link,
+            # task
+            "deadline": m.deadline,
+            "is_done": m.is_done or False,
+            "priority": m.priority,
         }
         for m in rows
     ]

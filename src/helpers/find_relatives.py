@@ -46,8 +46,8 @@ def find_candidates(
     embeddings: list[list[float]],
     morph: MorphAnalyzer,
     embedding_model: SentenceTransformer,
-    bm25_threshold: float = settings.BM25_THRESHHOLD,
-    emb_threshold: float = settings.EMBD_THRESHHOLD,
+    bm25_threshold: float = settings.BM25_THRESHOLD,
+    emb_threshold: float = settings.EMBEDDING_THRESHOLD,
 ):
     bm25_relevant_indexies = get_bm25_search_result(
         query, summaries, morph, bm25_threshold
