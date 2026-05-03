@@ -1,58 +1,39 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 .mypy_cache/
-
-# Distribution / packaging
-.Python
-build/
-dist/
 *.egg-info/
-*.egg
-MANIFEST
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
+# Tests
 .pytest_cache/
-
-# Local files/folders
-calendar_credentials*
-calendar_token*
-_local*
-llm_models/
-tmp_storage/
-media*
-logs*
+.coverage
+htmlcov/
 
 # Environments
 .env
 .envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# DB
-*.sqlite
-*.sqlite3
-*.db
+.venv/
 
 # IDE
-.DS_Store
 .vscode/
 .idea/
-
-# OS generated files
 .DS_Store
 Thumbs.db
 
-# telegram
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Telegram session
 *.session
 *.session-journal
+
+# Google Calendar OAuth
+calendar_credentials*
+calendar_token*
+
+# Models и логи
+llm_models/
+logs/

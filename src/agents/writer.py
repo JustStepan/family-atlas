@@ -6,6 +6,7 @@ from sqlalchemy import update
 from src.config import settings
 from src.database.models import AssembledMessages
 from src.logger import logger
+from src.integrations.google_calendar import create_calendar_event
 
 
 def person_to_wikilink(name: str) -> str:
@@ -105,6 +106,7 @@ def add_task_fields(state: dict) -> str:
 
 async def write_note(msg: dict, session) -> str:
     thread = msg["message_thread"]
+    google_calendar_link = None
     try:
         if thread == "task":
             result = await _write_task(msg)
@@ -112,14 +114,19 @@ async def write_note(msg: dict, session) -> str:
             result = await _write_diary_note_calend(msg)
         new_status = result.get("status", "error")
         final_status = "done" if new_status in ("written", "exists", "rewritten") else "error"
+        google_calendar_link = result.get("google_calendar_link")
     except Exception as e:
         logger.error(f"Ошибка записи сессии {msg['session_id']}: {e}")
         final_status = "error"
 
+    values = {"status": final_status}
+    if google_calendar_link:
+        values["google_calendar_link"] = google_calendar_link
+
     await session.execute(
         update(AssembledMessages)
         .where(AssembledMessages.session_id == msg["session_id"])
-        .values(status=final_status)
+        .values(**values)
     )
     await session.commit()
     return final_status
@@ -131,12 +138,31 @@ async def _write_diary_note_calend(state: dict) -> dict:
     )
     obsidian_path.parent.mkdir(parents=True, exist_ok=True)
     body = f"# {state['title']}\n\n{state['content']}"
+
     if calend_additions := add_addition_calend_fields(state):
         body += calend_additions
+
     if attachments := state.get("attachments"):
         links = "\n".join(f"![[{Path(p).name}]]" for p in attachments)
         body += f"\n\n## Вложения\n{links}"
-    return create_file(obsidian_path, get_frontmatter(state) + "\n\n" + body)
+
+    result = create_file(obsidian_path, get_frontmatter(state) + "\n\n" + body)
+
+    # Google Calendar — только для calendar треда
+    if state["message_thread"] == "calendar" and state.get("event_time"):
+        gcal_link = create_calendar_event(
+            title=state["title"],
+            event_time=state["event_time"],
+            event_end_time=state.get("event_end_time"),
+            description=state.get("summary"),
+        )
+        if gcal_link:
+            result["google_calendar_link"] = gcal_link
+            # дописываем ссылку в уже созданный файл
+            with open(obsidian_path, "a", encoding="utf-8") as f:
+                f.write(f"\n[📅 Открыть в Google Calendar]({gcal_link})\n")
+
+    return result
 
 
 async def _write_task(state: dict) -> dict:

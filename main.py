@@ -3,6 +3,7 @@ import asyncio
 from src.agents.obsidian_agent import start_analyze_agent
 from src.agents.graph import graph_builder
 from src.logger import setup_logger
+from src.config import settings
 from src.msg_assembler.assembler import prepare_msgs
 from src.msg_collector.telethon_collector import collect_and_save
 

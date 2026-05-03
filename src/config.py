@@ -30,13 +30,19 @@ class Settings(BaseSettings):
     )
 
     # --- Telegram -----------------------------------------------------------
+
+    # --- Данные вашего приложения https://my.telegram.org/apps
     TG_API_ID: int
     TG_API_HASH: str
-    BOT_TOKEN: str
     FORUM_CHAT_ID: int
     FAMILY_CHAT_IDS: dict[int, str]
     # Максимальный интервал (в минутах) между сообщениями одной сессии
     MSG_SESSION_THRESHOLD: dict[str, int] = {"notes": 5, "diary": 10}
+
+    # --- Google Calendar --------------------------------------------------------
+    GOOGLE_CALENDAR_ID: str = "primary"
+    GOOGLE_CREDENTIALS_FILE: Path = BASE_DIR / "calendar_credentials.json"
+    GOOGLE_TOKEN_FILE: Path = BASE_DIR / "calendar_token.json"
 
     # --- Obsidian -----------------------------------------------------------
     OBSIDIAN_VAULT_PATH: Path
