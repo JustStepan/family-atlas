@@ -61,6 +61,7 @@ class Settings(BaseSettings):
 
     # --- Агент --------------------------------------------------------------
     # Количество попыток вызова LLM при ошибке structured output
+    AGENT_MODEL: str = "Qwen3.6" # Берем из алиасов ниже (в def models(self))
     AGENT_ATTEMPTS: int = 2
 
     # --- Поиск связанных заметок (find_relatives) ---------------------------

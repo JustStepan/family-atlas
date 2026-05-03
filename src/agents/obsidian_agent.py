@@ -6,6 +6,7 @@ from src.database.utils import get_assembled_msgs, get_analyzed_msgs
 from src.database.engine import ensure_db_initialized, get_db
 from src.infrastructure.context import AppContext
 from src.infrastructure.embeddings import get_embedding_model
+from src.config import settings
 
 
 async def start_analyze_agent(graph: StateGraph):
@@ -28,7 +29,7 @@ async def start_analyze_agent(graph: StateGraph):
             for m in ready
         ]
         async with AppContext() as ctx:
-            await ctx.use_model("GigaChat")
+            await ctx.use_model(settings.AGENT_MODEL)
             async with get_db() as session:
                 for data in sessions_data:
                     await graph.ainvoke(
