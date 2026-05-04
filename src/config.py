@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     # --- Агент --------------------------------------------------------------
     # Количество попыток вызова LLM при ошибке structured output
-    AGENT_MODEL: str = "Qwen3.6" # Берем из алиасов ниже (в def models(self))
+    AGENT_MODEL: str = "GigaChat" # Берем из алиасов ниже (в def models(self))
     AGENT_ATTEMPTS: int = 2
 
     # --- Поиск связанных заметок (find_relatives) ---------------------------
@@ -88,11 +88,6 @@ class Settings(BaseSettings):
             },
             "Gpt-Oss-20b": {
                 "file": "gpt-oss-20b-Q8_0.gguf",
-                "args": ["--reasoning-budget", "1024", "--ctx-size", "16384"],
-                "max_tokens": 4096,
-            },
-            "Gemma-4": {
-                "file": "gemma-4-26B-A4B-Claude-Distill-APEX-I-Compact.gguf",
                 "args": ["--reasoning-budget", "1024", "--ctx-size", "16384"],
                 "max_tokens": 4096,
             },
