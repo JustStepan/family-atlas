@@ -10,15 +10,16 @@ from src.integrations.google_calendar import create_calendar_event
 
 
 def person_to_wikilink(name: str) -> str:
+    """Возвращает wikilink вида [[persons/Имя]] или [[Имя]] если уже в скобках."""
     if name.startswith("[["):
-        return f'"{name}"'
-    return f'"[[persons/{name}]]"'
+        return name
+    return f"[[persons/{name}]]"
 
 
 def get_frontmatter(state: dict) -> str:
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
-    people_yaml = "\n".join(f"  - {person_to_wikilink(p)}" for p in people)
+    people_yaml = "\n".join(f'  - "{person_to_wikilink(p)}"' for p in people)
     related = state.get("related") or []
     related_yaml = "\n".join(f'  - "[[{r}]]"' for r in related)
     logger.info(
@@ -52,7 +53,7 @@ def create_file(obsidian_path: Path, content: str) -> dict:
 def add_addition_calend_fields(state: dict) -> str:
     add_str = ""
     if state.get("event_time"):
-        add_str += f"\n---\nВремя события: {state.get('event_time')}"
+        add_str += f"\n\n---\nВремя события: {state.get('event_time')}"
     if state.get("location"):
         add_str += f", Место события: {state.get('location')}"
     return add_str

@@ -33,22 +33,31 @@ def get_credentials() -> Credentials:
     return creds
 
 
+def _parse_dt(value: str) -> datetime:
+    """Парсит datetime из строки — с секундами или без."""
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Неизвестный формат datetime: {value!r}")
+
+
 def create_calendar_event(
     title: str,
-    event_time: str,                    # "2026-04-20 15:00:00"
-    event_end_time: str | None = None,  # "2026-04-20 16:00:00" или None
+    event_time: str,
+    event_end_time: str | None = None,
     description: str | None = None,
 ) -> str | None:
-    """Создаёт событие в Google Calendar. Возвращает htmlLink или None."""
     try:
-        service = build("calendar", "v3", credentials=get_credentials())
+        service = build(
+            "calendar", "v3",
+            credentials=get_credentials(),
+            cache_discovery=False,  # убирает предупреждение file_cache
+        )
 
-        start_dt = datetime.strptime(event_time, "%Y-%m-%d %H:%M:%S")
-
-        if event_end_time:
-            end_dt = datetime.strptime(event_end_time, "%Y-%m-%d %H:%M:%S")
-        else:
-            end_dt = start_dt + timedelta(hours=1)
+        start_dt = _parse_dt(event_time)
+        end_dt = _parse_dt(event_end_time) if event_end_time else start_dt + timedelta(hours=1)
 
         event = {
             "summary": title,

@@ -61,7 +61,8 @@ class Settings(BaseSettings):
 
     # --- Агент --------------------------------------------------------------
     # Количество попыток вызова LLM при ошибке structured output
-    AGENT_MODEL: str = "GigaChat" # Берем из алиасов ниже (в def models(self))
+    AUDIO_NORMALIZER_MODEL: str = "GigaChat" # Берем из алиасов (Лучше GIGACHAT)
+    OBSIDIAN_AGENT_MODEL: str = "Qwen3.6" # Берем из алиасов ниже (в def models(self))
     AGENT_ATTEMPTS: int = 2
 
     # --- Поиск связанных заметок (find_relatives) ---------------------------
