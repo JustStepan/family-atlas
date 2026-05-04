@@ -29,7 +29,7 @@ async def start_analyze_agent(graph: StateGraph):
             for m in ready
         ]
         async with AppContext() as ctx:
-            await ctx.use_model(settings.AGENT_MODEL)
+            await ctx.use_model(settings.OBSIDIAN_AGENT_MODEL)
             async with get_db() as session:
                 for data in sessions_data:
                     await graph.ainvoke(

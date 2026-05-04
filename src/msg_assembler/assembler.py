@@ -7,6 +7,7 @@ from src.msg_assembler.image_describer import process_photo_messages
 from src.infrastructure.context import get_llm_model
 from src.database.engine import get_db
 from src.logger import logger
+from src.config import settings
 
 
 MSG_TYPE_MAP = {
@@ -42,7 +43,7 @@ async def prepare_msgs():
         if voice_msgs or photo_msgs or vision_in_docs:
             async with get_llm_model() as ctx:
                 if voice_msgs:
-                    await ctx.use_model("GigaChat")
+                    await ctx.use_model(settings.AUDIO_NORMALIZER_MODEL)
                     logger.info(f'Обрабатываем аудио: {len(voice_msgs)} шт.')
                     voice_msgs = await process_voice_messages(voice_msgs, ctx)
 
