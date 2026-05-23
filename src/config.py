@@ -93,7 +93,7 @@ class Settings(BaseSettings):
                 "max_tokens": 4096,
             },
             "Qwen3.6": {
-                "file": "Qwen3.6-35B-A3B-APEX-I-Compact.gguf",
+                "file": "Qwopus3.6-35B-A3B-v1-APEX-I-Compact.gguf",
                 "args": ["--reasoning-budget", "1024", "--ctx-size", "16384"],
                 "max_tokens": 4096,
             },
