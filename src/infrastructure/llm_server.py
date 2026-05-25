@@ -25,24 +25,34 @@ class LlamaServer:
 
         await self.unload()
 
+        log_file = open(f"/tmp/llama_{alias}.log", "w")
         out = None if self._verbose else asyncio.subprocess.DEVNULL
+
         self._proc = await asyncio.create_subprocess_exec(
             "llama-server",
             "-m", str(settings.llm_model_path / model_cfg["file"]),
             *BASE_ARGS,
             *model_cfg.get("args", []),
             stdout=out,
-            stderr=out,
+            stderr=log_file,
         )
-        await self._wait()
+        try:
+            await self._wait()
+        except TimeoutError:
+            log_file.flush()
+            raise TimeoutError(
+                f"Сервер не ответил за 120 секунд. "
+                f"Лог: /tmp/llama_{alias}.log"
+            )
         self._current_alias = alias
         logger.info(f"Модель загружена: {alias}")
 
     async def unload(self) -> None:
         if self._proc is None:
             return
-        self._proc.terminate()
-        await self._proc.wait()
+        if self._proc.returncode is None:  # только если живой
+            self._proc.terminate()
+            await self._proc.wait()
         self._proc = None
         self._current_alias = None
         logger.info("llama-server остановлен")
