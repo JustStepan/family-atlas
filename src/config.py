@@ -84,17 +84,33 @@ class Settings(BaseSettings):
         return {
             "GigaChat": {
                 "file": "GigaChat3.1-10B-A1.8B-q6_K.gguf",
-                "args": ["--reasoning", "off", "--ctx-size", "16384"],
+                "args": [
+                    "--ctx-size", "16384",
+                    "--cache-type-k", "q8_0",
+                    "--cache-type-v", "q8_0"
+                ],
                 "max_tokens": 2048,
             },
             "Gpt-Oss-20b": {
                 "file": "gpt-oss-20b-Q8_0.gguf",
-                "args": ["--reasoning-budget", "1024", "--ctx-size", "16384"],
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                    "--cache-type-k", "q8_0",
+                    "--cache-type-v", "q8_0"
+                ],
                 "max_tokens": 4096,
             },
             "Qwen3.6": {
-                "file": "Qwopus3.6-35B-A3B-v1-APEX-I-Compact.gguf",
-                "args": ["--reasoning-budget", "1024", "--ctx-size", "16384"],
+                "file": "Qwen3.6-35B-A3B-IQ4_XS-3.53bpw.gguf",
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                    "--cache-type-k", "q8_0",
+                    "--cache-type-v", "q8_0",
+                    "--spec-type", "draft-mtp",
+                    "--spec-draft-n-max", "2",
+                ],
                 "max_tokens": 4096,
             },
             "vision": {
@@ -103,6 +119,8 @@ class Settings(BaseSettings):
                     "--mmproj", str(self.llm_model_path / "mmproj-Qwen3-VL-4B-Instruct-F16.gguf"),
                     "--ctx-size", "8192",
                     "--reasoning", "off",
+                    "--cache-type-k", "f16",
+                    "--cache-type-v", "f16"
                 ],
                 "max_tokens": 1024,
             },

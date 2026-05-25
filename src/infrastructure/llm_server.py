@@ -8,8 +8,6 @@ from src.config import settings
 BASE_ARGS = [
     "-ngl", "999",
     "--flash-attn", "on",
-    "--cache-type-k", "q8_0",
-    "--cache-type-v", "q8_0",
     "--port", "8080",
 ]
 
