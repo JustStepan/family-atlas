@@ -74,9 +74,8 @@ class Person(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String)
-    telegram_id: Mapped[int | None] = mapped_column(Integer)
     obsidian_path: Mapped[str | None] = mapped_column(String)
     role: Mapped[str | None] = mapped_column(String)
-    notes: Mapped[str | None] = mapped_column(String)
+    mentioned_in: Mapped[list | None] = mapped_column(JSON, default=None)
     first_seen: Mapped[str] = mapped_column(String)
     last_seen: Mapped[str] = mapped_column(String)

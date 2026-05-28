@@ -3,10 +3,11 @@ from pathlib import Path
 import pymorphy3
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from sqlalchemy import update
+from sqlalchemy import select, update
 
-from src.database.models import AssembledMessages
-from src.database.utils import get_existing_tags_and_persons, get_summaries
+from src.agents.writer import create_person_file, update_person_file
+from src.database.models import AssembledMessages, Person
+from src.database.utils import get_existing_tags, get_summaries, get_existing_persons
 from src.agents.schemas import FamilyAtlasState, choose_state
 from src.logger import logger
 from src.config import settings
@@ -28,13 +29,15 @@ async def assembld_text_analyzer(
     llm = config["configurable"]["llm"]
     session = config["configurable"]["session"]
 
-    existing_tags, known_persons = await get_existing_tags_and_persons(session)
+    existing_tags = await get_existing_tags(session)
+    known_persons = await get_existing_persons(session)
+    persons_list = [f"{name} ({role})" for name, role in known_persons.items()]
     logger.info(
         f"Передаем на обработку существующие теги ({len(existing_tags)} шт.) и персоналии ({len(known_persons)} шт.)"
     )
 
     context = f"\nСуществующие теги: {', '.join(existing_tags)}"
-    context += f"\nИзвестные персоны: {', '.join(known_persons)}"
+    context += f"\nИзвестные персоны: {', '.join(persons_list)}"
     hum_msg = HumanMessage(
         content=(
             f"Автор сообщения: {state['author_name']} — не включай его в people_mentioned\n"
@@ -58,6 +61,9 @@ async def assembld_text_analyzer(
 
 
 async def db_updater(state: FamilyAtlasState, config: RunnableConfig) -> dict:
+    if state.get("status") == "error":
+        return {}
+
     session = config["configurable"]["session"]
     embedding_model = config["configurable"]["embedding_model"]
     embedding = embedding_model.encode(state.get("summary")).tolist()
@@ -105,7 +111,60 @@ async def db_updater(state: FamilyAtlasState, config: RunnableConfig) -> dict:
             .values(status="error")
         )
         await session.commit()
-    return {}
+    return {"obsidian_path": obsidian_path}
+
+
+async def person_updater(state: FamilyAtlasState, config: RunnableConfig):
+    peoples = state.get("people_mentioned") or []
+    if not peoples:
+        return {}
+    
+    session = config["configurable"]["session"]
+    print('note_stem -->', state.get("obsidian_path"))
+    note_stem = Path(state.get("obsidian_path")).stem
+
+    for people in peoples:
+        # ищем есть ли инфо в БД по персоне (есть ли путь в БД?)
+        query = await session.execute(
+            select(Person)
+            .where(Person.name == people["name"])
+            )
+        if db_person := query.scalar_one_or_none():
+            # Обновляем БД
+            current_mentioned = db_person.mentioned_in or []
+            if note_stem not in current_mentioned:
+                current_mentioned.append(note_stem)
+            
+            await session.execute(
+                update(Person)
+                .where(Person.name == people["name"])
+                .values(
+                    last_seen=state["created_at"],
+                    mentioned_in=current_mentioned,
+                )
+            )
+            # Обновляем файл
+            update_person_file(db_person, people, state["created_at"], note_stem)
+
+        else:
+            created_person = create_person_file(people, state["created_at"], note_stem)
+            status = created_person.get("status")
+            if status and status != 'error':
+                
+                new_related_people = Person(
+                    name=people["name"],
+                    obsidian_path=created_person.get("obsidian_path"),
+                    role=people["relation"],
+                    mentioned_in=[note_stem],
+                    first_seen=state["created_at"],
+                    last_seen=state["created_at"],
+                )
+                session.add(new_related_people)
+            else:
+                logger.error(f"Ошибка создания файла персоны: {people['name']}")
+                continue
+
+    await session.commit()
 
 
 def _get_candidate_summaries(

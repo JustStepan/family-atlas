@@ -5,6 +5,30 @@ from pydantic import BaseModel, Field
 import src.prompts.assembler_prompts as agent_prompt
 
 
+class PersonInfo(BaseModel):
+    name: str = Field(
+        description=(
+            "Имя персоны упомянутой в тексте. Именительный падеж."
+            "Если персона есть в списке известных персон — используй имя точно как там указано."
+            )
+        )
+    relation: str | None = Field(
+        description=(
+            "Роль или связь персоны с автором заметки. "
+            "Одно слово или короткая фраза в именительном падеже. "
+            "Если персона есть в списке 'Известные персоны' — используй точно ту же роль что указана там. "
+            "Если персона новая — опиши по аналогии с существующими: 'коллега', 'друг', 'врач', 'сосед', 'член семьи' и т.д. "
+            "Если роль неизвестна из текста — None."
+        )
+    )
+    context: str | None = Field(
+        description=(
+            "Краткий контекст упоминания персоны в этой конкретной заметке. "
+            "1-2 предложения. Только факты из текста."
+        )
+    )
+
+
 class FamilyAtlasState(TypedDict):
     # входные — обязательные
     session_id: int
@@ -19,7 +43,7 @@ class FamilyAtlasState(TypedDict):
     summary: NotRequired[str]
     content: NotRequired[str]
     tags: NotRequired[list[str]]
-    people_mentioned: NotRequired[list[str]]
+    people_mentioned: NotRequired[list[PersonInfo]]
     obsidian_path: NotRequired[str]
     status: NotRequired[str]
     # calendar-specific
@@ -65,11 +89,12 @@ class SessionBaseOutput(BaseModel):
             "минимум 2, максимум 6 тегов."
         )
     )
-    people_mentioned: list[str] | None = Field(
+    people_mentioned: list[PersonInfo] | None = Field(
         description=(
-            "Список персон упомянутых в тексте. "
-            "Имена нормализуются до именительного падежа. "
+            "Список персон класса PersonInfo упомянутых в тексте. "
+            "Класс содержит имя персоны, связь с автором, контекст упоминания в заметке"
             "Если персоналий нет — пустой список []."
+            "Если персона уже есть в списке 'Известные персоны' — используй ТОЧНО такое же имя как в списке, без изменений"
         )
     )
 

@@ -1,11 +1,9 @@
 import os
 import subprocess
 from pathlib import Path
-from functools import lru_cache
-
-import onnx_asr
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from src.infrastructure.sst_models import STTModels
 from src.agents.schemas import AudioNormalizer
 from src.prompts.audio_normalizer import AUDUO_NORMALIZER
 from src.infrastructure.context import AppContext
@@ -18,35 +16,8 @@ from src.logger import logger
 MEDIA_DIR = settings.get_media_path('voice')
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
+sstmodels = STTModels()
 
-# # providers=["CoreMLExecutionProvider", "CPUExecutionProvider"],  # раскомментировать на Intel Mac / Windows / Linux для ускорения
-# # providers=["CUDAExecutionProvider", "CPUExecutionProvider"],    # раскомментировать при наличии NVIDIA GPU
-# @lru_cache(maxsize=1)
-# def get_sst_model():
-#     """Загружает модель один раз, кешируется навсегда."""
-#     return onnx_asr.load_model(
-#         settings.STT_MODEL,
-#         settings.STT_MODEL_PATH,
-#         quantization="int8",        # для Parakeet
-#         providers=["CPUExecutionProvider"],
-#     )
-
-@lru_cache(maxsize=1)
-def get_parakeet_model():
-    return onnx_asr.load_model(
-        "nemo-conformer-tdt",
-        settings.STT_MODEL_PATH / "parakeet-tdt-0.6b-v3-int8",
-        quantization="int8",
-        providers=["CPUExecutionProvider"],
-    )
-
-@lru_cache(maxsize=1)
-def get_gigaam_rnnt_model():
-    return onnx_asr.load_model(
-        "gigaam-v3-e2e-rnnt",
-        settings.STT_MODEL_PATH / "gigaam-v3-e2e-rnnt",
-        providers=["CPUExecutionProvider"],
-    )
 
 def convert_to_wav(audio_path: Path) -> Path:
     """Конвертирует .ogg в .wav через ffmpeg"""
@@ -71,13 +42,13 @@ def convert_to_wav(audio_path: Path) -> Path:
 
 def transcribe(wav_path: Path) -> str:
     """Запускает STT модель и возвращает текст."""
-    parakeet = get_parakeet_model()
-    gigaam = get_gigaam_rnnt_model()
+    parakeet = sstmodels.parakeet
+    gigaam = sstmodels.gigaam
     # recognize() — синхронный вызов, возвращает строку
     return ('[Первая транскрибация аудио]\n\n'
             + parakeet.recognize(str(wav_path))
-            + '[Вторая транскрибация аудио]\n\n'
-            + gigaam.recognize(str(wav_path))) 
+            + '\n\n[Вторая транскрибация аудио]\n\n'
+            + gigaam.recognize(str(wav_path)))
 
 
 async def voice_normalizer(txt: str, ctx: AppContext) -> str:

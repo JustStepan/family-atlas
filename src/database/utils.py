@@ -4,7 +4,7 @@ from collections import Counter
 from sqlalchemy import select
 
 from src.database.engine import get_db
-from src.database.models import AssembledMessages
+from src.database.models import AssembledMessages, Person
 
 
 async def get_or_create(session, model, search_params, create_params=None):
@@ -70,19 +70,18 @@ def first_n_objects(lst: list[str], amount: int) -> list[str]:
     return [obj[0] for obj in count_obj]
 
 
-async def get_existing_tags_and_persons(session) -> tuple[list[str], list[str]]:
-    tags_query = await session.execute(
-        select(AssembledMessages.tags))
-    persons_query = await session.execute(
-        select(AssembledMessages.people_mentioned))
-    
+async def get_existing_tags(session) -> list[str]:
+    tags_query = await session.execute(select(AssembledMessages.tags))
     tags = [t for t in tags_query.scalars().all() if t is not None]
-    persons = [p for p in persons_query.scalars().all() if p is not None]
-    
-    return (
-        first_n_objects(chain.from_iterable(tags), 30),
-        first_n_objects(chain.from_iterable(persons), 30)
+    return first_n_objects(chain.from_iterable(tags), 30)
+
+
+async def get_existing_persons(session) -> dict[str, str]:
+    persons_query = await session.execute(
+        select(Person.name, Person.role).where(Person.role.isnot(None))
     )
+    persons = persons_query.all()
+    return {name: role for name, role in persons}
 
 
 async def get_summaries(session) -> dict[str, list]:

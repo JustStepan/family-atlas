@@ -74,7 +74,7 @@ async def handle_forwarded(msg, client: TelegramClient) -> dict:
     if origin.from_id and hasattr(origin.from_id, "user_id"):
         user_id = origin.from_id.user_id
         if user_id == msg.sender_id:
-            info = "Автор переслал своё собственное сообщение"
+            info = "Автор переслал свое собственное сообщение"
         elif user_id in settings.FAMILY_CHAT_IDS:
             info = f"Автор переслал сообщение от {settings.FAMILY_CHAT_IDS[user_id]}"
         else:

@@ -9,6 +9,7 @@ BASE_ARGS = [
     "-ngl", "999",
     "--flash-attn", "on",
     "--port", "8080",
+    "-np", "1",
 ]
 
 

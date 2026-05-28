@@ -40,7 +40,7 @@ async def start_analyze_agent(graph: StateGraph):
                             "embedding_model": get_embedding_model(),
                         }},
                     )
-        # Pass 2 — пишем всё что проанализировано (старое + только что)
+        # Pass 2 — пишем все что проанализировано (старое + только что)
         async with get_db() as session:
             all_analyzed = await get_analyzed_msgs(session)
             for msg in all_analyzed:

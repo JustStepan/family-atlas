@@ -3,6 +3,7 @@ from pathlib import Path
 import frontmatter as fm
 from sqlalchemy import update
 
+from src.agents.schemas import PersonInfo
 from src.config import settings
 from src.database.models import AssembledMessages
 from src.logger import logger
@@ -19,7 +20,7 @@ def person_to_wikilink(name: str) -> str:
 def get_frontmatter(state: dict) -> str:
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
-    people_yaml = "\n".join(f'  - "{person_to_wikilink(p)}"' for p in people)
+    people_yaml = "\n".join(f'  - "{person_to_wikilink(p.name)}"' for p in people)
     related = state.get("related") or []
     related_yaml = "\n".join(f'  - "[[{r}]]"' for r in related)
     logger.info(
@@ -48,6 +49,61 @@ def create_file(obsidian_path: Path, content: str) -> dict:
     except Exception as e:
         logger.error(f"Во время записи файла произошла ошибка: {e}")
         return {"obsidian_path": str(obsidian_path), "status": "error"}
+
+def create_person_file(person: dict[str, str], created_at: str, note_stem: str) -> dict:
+    person_path = settings.persons_path / f"{person['name']}.md"
+    settings.persons_path.mkdir(parents=True, exist_ok=True)
+
+    post = fm.Post(
+        content=(
+            f"> [!info]- Связь с автором\n"
+            f"> {person['relation']}\n\n"
+            f"## {created_at[:10]}\n"
+            f"{person['context']}"
+        ),
+        **{
+            "name": person['name'],
+            "first_seen": created_at[:10],
+            "last_seen": created_at[:10],
+            "mentioned_in": [f"[[{note_stem}]]"],
+        }
+    )
+
+    try:
+        person_path.write_text(fm.dumps(post), encoding="utf-8")
+        logger.info(f"Файл {person_path.name} успешно записан в хранилище")
+        return {"obsidian_path": str(person_path), "status": "written"}
+    except Exception as e:
+        logger.error(f"Во время записи файла персоны произошла ошибка: {e}")
+        return {"obsidian_path": str(person_path), "status": "error"}
+
+
+def update_person_file(db_person, person: PersonInfo, created_at: str, note_stem: str) -> None:
+    person_path = Path(db_person.obsidian_path)
+    if not person_path.exists():
+        logger.warning(f"Файл персоны не найден: {person_path}")
+        return
+
+    post = fm.load(person_path)
+    
+    # Обновляем mentioned_in во frontmatter
+    mentioned = post.get("mentioned_in") or []
+    wikilink = f"[[{note_stem}]]"
+    if wikilink not in mentioned:
+        mentioned.append(wikilink)
+    post["mentioned_in"] = mentioned
+    post["last_seen"] = created_at[:10]
+
+    # Дописываем новый блок
+    post.content += (
+        f"\n\n### {created_at[:10]}\n"
+        f"{person["context"]}\n"
+        f"[[{note_stem}]]"
+    )
+
+    with open(person_path, "w", encoding="utf-8") as f:
+        f.write(fm.dumps(post))
+    logger.info(f"Файл персоны обновлен: {person_path.name}")
 
 
 def add_addition_calend_fields(state: dict) -> str:

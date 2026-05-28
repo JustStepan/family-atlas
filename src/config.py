@@ -52,8 +52,7 @@ class Settings(BaseSettings):
     LLAMA_SERVER_PORT: int = 8080
 
     # --- STT (onnx-asr) -----------------------------------------------------
-    STT_MODEL: str = "nemo-parakeet-tdt-0.6b-v3"
-    STT_MODEL_PATH: Path = BASE_DIR / "llm_models" / "stt_models" / "parakeet-tdt-0.6b-v3-int8"
+    STT_MODEL_PATH: Path = BASE_DIR / "llm_models" / "stt_models"
 
     # --- Embeddings ---------------------------------------------------------
     EMBEDDING_MODEL: str = "sergeyzh/LaBSE-ru-turbo"

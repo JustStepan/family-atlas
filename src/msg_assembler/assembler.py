@@ -1,6 +1,8 @@
+import asyncio
+
 from sqlalchemy import select, update
 
-from src.msg_assembler.voice_recognition import process_voice_messages
+from src.msg_assembler.voice_recognition import process_voice_messages, sstmodels
 from src.msg_assembler.docs_saver import MIME_TO_HANDLER, process_doc_messages
 from src.database.models import AssembledMessages, LocalRawMessages
 from src.msg_assembler.image_describer import process_photo_messages
@@ -46,7 +48,8 @@ async def prepare_msgs():
                     await ctx.use_model(settings.AUDIO_NORMALIZER_MODEL)
                     logger.info(f'Обрабатываем аудио: {len(voice_msgs)} шт.')
                     voice_msgs = await process_voice_messages(voice_msgs, ctx)
-
+                    sstmodels.unload() # выгружаем аудиомодели чтобы освободить память
+                    await asyncio.sleep(3) # ждем для освобождения памяти и для загрузки агентной модели
                 if photo_msgs or vision_in_docs:
                     await ctx.use_model("vision")
                     if photo_msgs:
@@ -115,13 +118,13 @@ async def assembler(session, messages) -> list[int]:
             )
 
         if msg.file_name:
-            content += f'\n- Имя прикреплённого файла: {msg.file_name}'
+            content += f'\n- Имя прикрепленного файла: {msg.file_name}'
 
         if msg.caption:
-            content += f'\n- Заголовок прикреплённого документа: {msg.caption}'
+            content += f'\n- Заголовок прикрепленного документа: {msg.caption}'
 
         if msg.session_id == last_session_id:
-            new_data["content"] += f'\n\nЕщё одно сообщение этой темы:\n{content}'
+            new_data["content"] += f'\n\nЕще одно сообщение этой темы:\n{content}'
             if msg.file_path:
                 new_data["attachments"].append(msg.file_path)
         else:

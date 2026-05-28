@@ -141,7 +141,7 @@ brew install llama.cpp
 
 Или скачай бинарник с [github.com/ggerganov/llama.cpp/releases](https://github.com/ggerganov/llama.cpp/releases) и добавь `llama-server` в PATH.
 
-Проверь что всё установлено:
+Проверь что все установлено:
 ```bash
 uv --version
 ffmpeg -version
@@ -237,7 +237,7 @@ uv run src/helpers/download_models.py
 
 При первом запуске с calendar-сессией откроется браузер — авторизуйся. Токен сохранится в `calendar_token.json` и будет обновляться автоматически.
 
-Если Google Calendar не настроен — календарные заметки сохранятся в Obsidian без ссылки на событие, ничего не упадёт.
+Если Google Calendar не настроен — календарные заметки сохранятся в Obsidian без ссылки на событие, ничего не упадет.
 
 ### 6. Первый запуск
 
@@ -259,7 +259,7 @@ Please enter the code you received: 12345
 1. Собирает новые сообщения из Telegram форума
 2. Обрабатывает медиа (STT, vision) и собирает в сессии
 3. Pass 1: анализирует через LLM, ищет связанные заметки, сохраняет в БД
-4. Pass 2: записывает Markdown файлы в Obsidian vault, создаёт события в Google Calendar
+4. Pass 2: записывает Markdown файлы в Obsidian vault, создает события в Google Calendar
 
 ---
 
@@ -377,7 +377,7 @@ related:
 
 ## Поиск связанных заметок
 
-Трёхуровневый каскад в `find_relatives`:
+Трехуровневый каскад в `find_relatives`:
 
 ```
 summary текущей заметки
@@ -396,7 +396,7 @@ summary текущей заметки
 - [ ] Tag drift — нормализация тегов-синонимов через BM25
 - [ ] Двусторонние related — обновление frontmatter связанных заметок
 - [ ] Google Calendar link — сохранение ссылки на событие в БД и frontmatter
-- [ ] Еженедельная суммаризация — аудиоотчёты через MOSS-TTS-Nano
+- [ ] Еженедельная суммаризация — аудиоотчеты через MOSS-TTS-Nano
 - [ ] Docker Compose деплой collector на сервер
 - [ ] FastAPI dashboard для мониторинга на localhost
 
