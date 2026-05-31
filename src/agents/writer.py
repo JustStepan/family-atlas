@@ -20,7 +20,7 @@ def person_to_wikilink(name: str) -> str:
 def get_frontmatter(state: dict) -> str:
     tags_yaml = "\n".join(f"  - {tag}" for tag in state["tags"])
     people = state.get("people_mentioned") or []
-    people_yaml = "\n".join(f'  - "{person_to_wikilink(p.name)}"' for p in people)
+    people_yaml = "\n".join(f'  - "{person_to_wikilink(p["name"])}"' for p in people)
     related = state.get("related") or []
     related_yaml = "\n".join(f'  - "[[{r}]]"' for r in related)
     logger.info(
@@ -56,13 +56,13 @@ def create_person_file(person: dict[str, str], created_at: str, note_stem: str) 
 
     post = fm.Post(
         content=(
-            f"> [!info]- Связь с автором\n"
-            f"> {person['relation']}\n\n"
             f"## {created_at[:10]}\n"
-            f"{person['context']}"
+            f"{person['context']}\n"
+            f"[[{note_stem}]]"
         ),
         **{
             "name": person['name'],
+            "role": person['relation'],
             "first_seen": created_at[:10],
             "last_seen": created_at[:10],
             "mentioned_in": [f"[[{note_stem}]]"],
@@ -116,14 +116,14 @@ def add_addition_calend_fields(state: dict) -> str:
 
 
 def add_frontmatter_fields(
-    obsidian_path: Path, tags: list[str], people: list[str], body: str
+    obsidian_path: Path, tags: list[str], people: list[dict], body: str
 ) -> dict:
     post = fm.load(obsidian_path)
     post["tags"] = list(set((post.get("tags") or []) + tags))
     post["people_mentioned"] = list(
         set(
             (post.get("people_mentioned") or [])
-            + [person_to_wikilink(p) for p in people]
+            + [person_to_wikilink(p["name"]) for p in people]
         )
     )
     post.content += "\n\n" + body
@@ -189,6 +189,28 @@ async def write_note(msg: dict, session) -> str:
     return final_status
 
 
+def update_related_notes(current_stem: str, related: list[str]) -> None:
+    """Обновляет frontmatter связанных заметок — добавляет текущую заметку в их related."""
+    for stem in related:
+        matches = list(settings.OBSIDIAN_VAULT_PATH.rglob(f"{stem}.md"))
+        if not matches:
+            logger.warning(f"update_related_notes: файл не найден для стема '{stem}'")
+            continue
+
+        note_path = matches[0]
+        try:
+            post = fm.load(note_path)
+            existing_related = post.get("related") or []
+            wikilink = f"[[{current_stem}]]"
+            if wikilink not in existing_related:
+                existing_related.append(wikilink)
+                post["related"] = existing_related
+                with open(note_path, "w", encoding="utf-8") as f:
+                    f.write(fm.dumps(post))
+                logger.info(f"update_related_notes: добавлена связь {wikilink} → {note_path.name}")
+        except Exception as e:
+            logger.error(f"update_related_notes: ошибка обновления {note_path.name}: {e}")
+
 async def _write_diary_note_calend(state: dict) -> dict:
     obsidian_path = settings.get_note_path(
         state["message_thread"], state["created_at"], state["title"]
@@ -204,6 +226,11 @@ async def _write_diary_note_calend(state: dict) -> dict:
         body += f"\n\n## Вложения\n{links}"
 
     result = create_file(obsidian_path, get_frontmatter(state) + "\n\n" + body)
+
+    # Обновляем связанные заметки
+    if result.get("status") == "written" and state.get("related"):
+        current_stem = obsidian_path.stem
+        update_related_notes(current_stem, state["related"])
 
     # Google Calendar — только для calendar треда
     if state["message_thread"] == "calendar" and state.get("event_time"):
@@ -221,20 +248,26 @@ async def _write_diary_note_calend(state: dict) -> dict:
 
     return result
 
-
 async def _write_task(state: dict) -> dict:
     obsidian_path = settings.get_note_path(
         state["message_thread"], state["created_at"]
     )
     obsidian_path.parent.mkdir(parents=True, exist_ok=True)
     body = add_task_fields(state)
+
     if not obsidian_path.exists():
-        return create_file(obsidian_path, get_frontmatter(state) + "\n\n" + body)
-    if state.get("tags") or state.get("people_mentioned"):
-        return add_frontmatter_fields(
+        result = create_file(obsidian_path, get_frontmatter(state) + "\n\n" + body)
+    elif state.get("tags") or state.get("people_mentioned"):
+        result = add_frontmatter_fields(
             obsidian_path,
             state.get("tags") or [],
             state.get("people_mentioned") or [],
             body,
         )
-    return add_to_file(obsidian_path, "\n\n" + body)
+    else:
+        result = add_to_file(obsidian_path, "\n\n" + body)
+
+    if result.get("status") in ("written", "rewritten") and state.get("related"):
+        update_related_notes(obsidian_path.stem, state["related"])
+
+    return result

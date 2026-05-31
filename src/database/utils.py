@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from itertools import chain
 from collections import Counter
 
@@ -71,17 +72,34 @@ def first_n_objects(lst: list[str], amount: int) -> list[str]:
 
 
 async def get_existing_tags(session) -> list[str]:
-    tags_query = await session.execute(select(AssembledMessages.tags))
-    tags = [t for t in tags_query.scalars().all() if t is not None]
-    return first_n_objects(chain.from_iterable(tags), 30)
-
-
-async def get_existing_persons(session) -> dict[str, str]:
-    persons_query = await session.execute(
-        select(Person.name, Person.role).where(Person.role.isnot(None))
+    all_tags_q = await session.execute(select(AssembledMessages.tags))
+    all_tags = list(chain.from_iterable(
+        t for t in all_tags_q.scalars().all() if t
+    ))
+    top_all = first_n_objects(all_tags, 40)
+    
+    # свежие теги (последние 30 дней)
+    recent_q = await session.execute(
+        select(AssembledMessages.tags)
+        .where(AssembledMessages.created_at >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"))
     )
-    persons = persons_query.all()
-    return {name: role for name, role in persons}
+    recent_tags = list(chain.from_iterable(
+        t for t in recent_q.scalars().all() if t
+    ))
+    top_recent = first_n_objects(recent_tags, 40)
+    
+    return list(dict.fromkeys(top_all + top_recent))  # дедупликация
+
+
+async def get_existing_persons(session) -> dict[str, list]:
+    persons_query = await session.execute(
+        select(Person.name, Person.contexts)
+        .where(Person.contexts.isnot(None))
+        .order_by(Person.last_seen.desc())
+        .limit(50)
+    )
+    rows = persons_query.all()
+    return {name: contexts for name, contexts in rows}
 
 
 async def get_summaries(session) -> dict[str, list]:

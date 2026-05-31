@@ -76,6 +76,7 @@ class Person(Base):
     name: Mapped[str] = mapped_column(String)
     obsidian_path: Mapped[str | None] = mapped_column(String)
     role: Mapped[str | None] = mapped_column(String)
+    contexts: Mapped[list | None] = mapped_column(JSON, default=None)
     mentioned_in: Mapped[list | None] = mapped_column(JSON, default=None)
     first_seen: Mapped[str] = mapped_column(String)
     last_seen: Mapped[str] = mapped_column(String)

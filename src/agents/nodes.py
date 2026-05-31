@@ -30,8 +30,15 @@ async def assembld_text_analyzer(
     session = config["configurable"]["session"]
 
     existing_tags = await get_existing_tags(session)
+    print('existing_tags\n', existing_tags)
     known_persons = await get_existing_persons(session)
-    persons_list = [f"{name} ({role})" for name, role in known_persons.items()]
+    print('\nknown_persons\n', known_persons)
+
+    persons_list = [
+        f"{name}: {' | '.join((contexts or [])[-2:])}"
+        for name, contexts in known_persons.items()
+    ]
+
     logger.info(
         f"Передаем на обработку существующие теги ({len(existing_tags)} шт.) и персоналии ({len(known_persons)} шт.)"
     )
@@ -118,48 +125,53 @@ async def person_updater(state: FamilyAtlasState, config: RunnableConfig):
     peoples = state.get("people_mentioned") or []
     if not peoples:
         return {}
-    
+
+    if not state.get("obsidian_path"):
+        logger.warning(f"person_updater: obsidian_path отсутствует для session_id={state.get('session_id')}")
+        return {}
+
     session = config["configurable"]["session"]
-    print('note_stem -->', state.get("obsidian_path"))
-    note_stem = Path(state.get("obsidian_path")).stem
+    note_stem = Path(state["obsidian_path"]).stem
 
     for people in peoples:
-        # ищем есть ли инфо в БД по персоне (есть ли путь в БД?)
         query = await session.execute(
-            select(Person)
-            .where(Person.name == people["name"])
-            )
+            select(Person).where(Person.name == people["name"])
+        )
         if db_person := query.scalar_one_or_none():
-            # Обновляем БД
             current_mentioned = db_person.mentioned_in or []
             if note_stem not in current_mentioned:
                 current_mentioned.append(note_stem)
-            
+
+            current_contexts = db_person.contexts or []
+            if people["context"] and people["context"] not in current_contexts:
+                current_contexts.append(people["context"])
+
             await session.execute(
                 update(Person)
                 .where(Person.name == people["name"])
                 .values(
                     last_seen=state["created_at"],
                     mentioned_in=current_mentioned,
+                    contexts=current_contexts,
+                    role=people["relation"],
                 )
             )
-            # Обновляем файл
             update_person_file(db_person, people, state["created_at"], note_stem)
 
         else:
             created_person = create_person_file(people, state["created_at"], note_stem)
             status = created_person.get("status")
-            if status and status != 'error':
-                
-                new_related_people = Person(
+            if status and status != "error":
+                new_person = Person(
                     name=people["name"],
                     obsidian_path=created_person.get("obsidian_path"),
                     role=people["relation"],
+                    contexts=[people["context"]],
                     mentioned_in=[note_stem],
                     first_seen=state["created_at"],
                     last_seen=state["created_at"],
                 )
-                session.add(new_related_people)
+                session.add(new_person)
             else:
                 logger.error(f"Ошибка создания файла персоны: {people['name']}")
                 continue

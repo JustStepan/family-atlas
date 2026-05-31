@@ -30,8 +30,8 @@ async def start_analyze_agent(graph: StateGraph):
         ]
         async with AppContext() as ctx:
             await ctx.use_model(settings.OBSIDIAN_AGENT_MODEL)
-            async with get_db() as session:
-                for data in sessions_data:
+            for data in sessions_data:
+                async with get_db() as session:
                     await graph.ainvoke(
                         FamilyAtlasState(**data),
                         config={"configurable": {
