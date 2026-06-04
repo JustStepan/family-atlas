@@ -17,4 +17,4 @@ def graph_builder():
     graph.add_edge("data_base_upd", "persons_upd")
     graph.add_edge("persons_upd", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=None)

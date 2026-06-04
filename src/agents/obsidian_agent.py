@@ -38,7 +38,7 @@ async def start_analyze_agent(graph: StateGraph):
                             "llm": ctx.llm,
                             "session": session,
                             "embedding_model": get_embedding_model(),
-                        }},
+                        }, "recursion_limit": 10},
                     )
         # Pass 2 — пишем все что проанализировано (старое + только что)
         async with get_db() as session:
