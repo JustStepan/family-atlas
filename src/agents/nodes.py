@@ -30,21 +30,23 @@ async def assembld_text_analyzer(
     session = config["configurable"]["session"]
 
     existing_tags = await get_existing_tags(session)
-    print('existing_tags\n', existing_tags)
     known_persons = await get_existing_persons(session)
-    print('\nknown_persons\n', known_persons)
 
-    persons_list = [
-        f"{name}: {' | '.join((contexts or [])[-2:])}"
+    persons_lines = "\n".join(
+        f"- {name}: {' / '.join((contexts or [])[-2:])}"
         for name, contexts in known_persons.items()
-    ]
+    )
 
     logger.info(
         f"Передаем на обработку существующие теги ({len(existing_tags)} шт.) и персоналии ({len(known_persons)} шт.)"
     )
 
     context = f"\nСуществующие теги: {', '.join(existing_tags)}"
-    context += f"\nИзвестные персоны: {', '.join(persons_list)}"
+    context += (
+        "\nСправочник известных персон (используй эти имена если персона совпадает):\n"
+        + persons_lines
+    )
+
     hum_msg = HumanMessage(
         content=(
             f"Автор сообщения: {state['author_name']} — не включай его в people_mentioned\n"
