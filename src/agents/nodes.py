@@ -7,7 +7,8 @@ from sqlalchemy import select, update
 
 from src.agents.writer import create_person_file, update_person_file
 from src.database.models import AssembledMessages, Person
-from src.database.utils import get_existing_tags, get_summaries, get_existing_persons
+from src.database.utils import get_existing_tags, get_summaries
+from src.helpers.person_resolver import resolve_person
 from src.agents.schemas import FamilyAtlasState, choose_state
 from src.logger import logger
 from src.config import settings
@@ -30,30 +31,14 @@ async def assembld_text_analyzer(
     session = config["configurable"]["session"]
 
     existing_tags = await get_existing_tags(session)
-    known_persons = await get_existing_persons(session)
-
-    persons_lines = "\n".join(
-        f"- {name}: {' / '.join((contexts or [])[-2:])}"
-        for name, contexts in known_persons.items()
-    )
-
-    logger.info(
-        f"Передаем на обработку существующие теги ({len(existing_tags)} шт.) и персоналии ({len(known_persons)} шт.)"
-    )
-
+    logger.info(f"Передаем на обработку существующие теги ({len(existing_tags)} шт.)")
     context = f"\nСуществующие теги: {', '.join(existing_tags)}"
-    context += (
-        "\nСправочник известных персон (используй эти имена если персона совпадает):\n"
-        + persons_lines
-    )
 
-    hum_msg = HumanMessage(
-        content=(
-            f"Автор сообщения: {state['author_name']} — не включай его в people_mentioned\n"
-            f"Обработай текст:\n{state['raw_content']}\n"
-            f"Время: {state['created_at']}\n{context}"
-        )
-    )
+    hum_msg = HumanMessage(content=(
+        f"Автор сообщения: {state['author_name']} — не включай его в people_mentioned\n"
+        f"Обработай текст:\n{state['raw_content']}\n"
+        f"Время: {state['created_at']}\n{context}"
+    ))
     system_msg = SystemMessage(content=system_prompt)
     structured_llm = llm.with_structured_output(pdtc_output)
 
@@ -127,58 +112,88 @@ async def person_updater(state: FamilyAtlasState, config: RunnableConfig):
     peoples = state.get("people_mentioned") or []
     if not peoples:
         return {}
-
     if not state.get("obsidian_path"):
-        logger.warning(f"person_updater: obsidian_path отсутствует для session_id={state.get('session_id')}")
+        logger.warning(f"person_updater: нет obsidian_path для session_id={state.get('session_id')}")
         return {}
 
     session = config["configurable"]["session"]
     note_stem = Path(state["obsidian_path"]).stem
 
-    for people in peoples:
-        query = await session.execute(
-            select(Person).where(Person.name == people["name"])
-        )
-        if db_person := query.scalar_one_or_none():
-            current_mentioned = db_person.mentioned_in or []
-            if note_stem not in current_mentioned:
-                current_mentioned.append(note_stem)
+    resolved_people = []  # пойдёт во frontmatter заметки вместо сырых имён
+    seen = set()          # защита от дублей одной персоны внутри одной заметки
 
-            current_contexts = db_person.contexts or []
-            if people["context"] and people["context"] not in current_contexts:
-                current_contexts.append(people["context"])
+    for mention in peoples:
+        logger.info(f"Упоминание от модели: {mention}")
+        decision = await resolve_person(mention, session, morph)
+        if decision["action"] == "skip":
+            logger.info(f"Персона пропущена: {mention.get('name')!r}")
+            continue
 
-            await session.execute(
-                update(Person)
-                .where(Person.name == people["name"])
-                .values(
-                    last_seen=state["created_at"],
-                    mentioned_in=current_mentioned,
-                    contexts=current_contexts,
-                    role=people["relation"],
-                )
-            )
-            update_person_file(db_person, people, state["created_at"], note_stem)
+        name = decision["canonical_name"]
+        if name in seen:
+            continue
+        seen.add(name)
 
-        else:
-            created_person = create_person_file(people, state["created_at"], note_stem)
-            status = created_person.get("status")
-            if status and status != "error":
-                new_person = Person(
-                    name=people["name"],
-                    obsidian_path=created_person.get("obsidian_path"),
-                    role=people["relation"],
-                    contexts=[people["context"]],
-                    mentioned_in=[note_stem],
-                    first_seen=state["created_at"],
-                    last_seen=state["created_at"],
-                )
-                session.add(new_person)
-            else:
-                logger.error(f"Ошибка создания файла персоны: {people['name']}")
-                continue
+        role = decision["role"]
+        context = mention.get("context") or ""
 
+        if decision["action"] == "link":
+            await _link_person(session, name, role, context, state["created_at"], note_stem)
+        else:  # create
+            await _create_person(session, name, role, context, state["created_at"], note_stem)
+
+        resolved_people.append({"name": name, "relation": role, "context": context})
+
+    # переписываем people_mentioned каноническими именами — чтобы вики-ссылки в заметке
+    # совпадали с карточками персон (Pass 2 берёт people_mentioned из БД)
+    await session.execute(
+        update(AssembledMessages)
+        .where(AssembledMessages.session_id == state["session_id"])
+        .values(people_mentioned=resolved_people)
+    )
     await session.commit()
+
+
+async def _link_person(session, name, role, context, created_at, note_stem) -> None:
+    q = await session.execute(select(Person).where(Person.name == name))
+    db_person = q.scalar_one_or_none()
+    if db_person is None:  # имя из словаря, но записи ещё нет — создаём
+        await _create_person(session, name, role, context, created_at, note_stem)
+        return
+
+    mentioned = db_person.mentioned_in or []
+    if note_stem not in mentioned:
+        mentioned.append(note_stem)
+    contexts = db_person.contexts or []
+    if context and context not in contexts:
+        contexts.append(context)
+
+    await session.execute(
+        update(Person).where(Person.name == name).values(
+            last_seen=created_at,
+            mentioned_in=mentioned,
+            contexts=contexts,
+            role=role or db_person.role,
+        )
+    )
+    update_person_file(db_person, {"context": context}, created_at, note_stem)
+
+
+async def _create_person(session, name, role, context, created_at, note_stem) -> None:
+    person = {"name": name, "relation": role, "context": context}
+    created = create_person_file(person, created_at, note_stem)
+    if created.get("status") == "error":
+        logger.error(f"Ошибка создания файла персоны: {name}")
+        return
+    session.add(Person(
+        name=name,
+        obsidian_path=created.get("obsidian_path"),
+        role=role,
+        contexts=[context] if context else [],
+        mentioned_in=[note_stem],
+        first_seen=created_at,
+        last_seen=created_at,
+    ))
 
 
 def _get_candidate_summaries(

@@ -61,12 +61,16 @@ class Settings(BaseSettings):
     # --- Агент --------------------------------------------------------------
     # Количество попыток вызова LLM при ошибке structured output
     AUDIO_NORMALIZER_MODEL: str = "GigaChat" # Берем из алиасов (Лучше GIGACHAT)
-    OBSIDIAN_AGENT_MODEL: str = "Qwen3.6" # Берем из алиасов ниже (в def models(self))
+    OBSIDIAN_AGENT_MODEL: str = "Gemma4-26b" # Берем из алиасов ниже (в def models(self))
     AGENT_ATTEMPTS: int = 2
 
     # --- Поиск связанных заметок (find_relatives) ---------------------------
     BM25_THRESHOLD: float = 2.0
     EMBEDDING_THRESHOLD: float = 0.8
+
+    # --- Резолвер персон ----------------------------------------------------
+    PERSON_FUZZY_THRESHOLD: int = 90        # порог нечёткого совпадения имён (0-100)
+    FAMILY_ALIASES: dict[str, list[str]] = {}  # из .env; {"Имя|роль": [алиасы]}
 
     # --- Вычисляемые пути ---------------------------------------------------
 
@@ -92,6 +96,16 @@ class Settings(BaseSettings):
             },
             "Gpt-Oss-20b": {
                 "file": "gpt-oss-20b-Q8_0.gguf",
+                "args": [
+                    "--reasoning-budget", "1024",
+                    "--ctx-size", "16384",
+                    "--cache-type-k", "q8_0",
+                    "--cache-type-v", "q8_0"
+                ],
+                "max_tokens": 4096,
+            },
+            "Gemma4-26b": {
+                "file": "gemma-4-26B-A4B-it-UD-IQ4_XS.gguf",
                 "args": [
                     "--reasoning-budget", "1024",
                     "--ctx-size", "16384",
