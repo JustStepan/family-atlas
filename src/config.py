@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     PERSON_FUZZY_THRESHOLD: int = 90        # порог нечёткого совпадения имён (0-100)
     FAMILY_ALIASES: dict[str, list[str]] = {}  # из .env; {"Имя|роль": [алиасы]}
 
+    # --- Суммаризатор -------------------------------------------------------
+    SUMMARY_THREAD_ID: int | None = None      # тред форума для сводок; None — слать в личку family
+    SUMMARY_AGENT_MODEL: str = "Qwen3.6"      # модель для генерации текста сводки
+
     # --- Вычисляемые пути ---------------------------------------------------
 
     @cached_property
@@ -81,6 +85,10 @@ class Settings(BaseSettings):
     @cached_property
     def persons_path(self) -> Path:
         return self.OBSIDIAN_VAULT_PATH / "persons"
+
+    @cached_property
+    def summary_path(self) -> Path:
+        return self.OBSIDIAN_VAULT_PATH / "summary"
 
     @cached_property
     def models(self) -> dict:

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block body %}
+<h1>Слияние персон</h1>
+{% if msg %}<p style="background:#eef;padding:.5rem">{{ msg }}</p>{% endif %}
+<p>Источник сольётся в цель: данные перенесутся, дубль и его карточка удалятся, ссылки в заметках обновятся. Необратимо.</p>
+<form method="post" action="/merge">
+  <p>Источник (удалится):
+    <select name="source" required>{% for n in names %}<option>{{ n }}</option>{% endfor %}</select></p>
+  <p>Цель (останется):
+    <select name="target" required>{% for n in names %}<option>{{ n }}</option>{% endfor %}</select></p>
+  <button type="submit" onclick="return confirm('Слить? Необратимо.')">Слить</button>
+</form>
+{% endblock %}

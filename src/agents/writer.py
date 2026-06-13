@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import frontmatter as fm
@@ -271,3 +272,19 @@ async def _write_task(state: dict) -> dict:
         update_related_notes(obsidian_path.stem, state["related"])
 
     return result
+
+
+def write_summary_note(period_start: str, period_end: str, content: str) -> dict:
+    """summary/YYYY/MM-месяц/WW-неделя.md"""
+    from src.config import MONTH_NAMES
+    start = datetime.strptime(period_start, "%Y-%m-%d")
+    week = start.isocalendar()[1]
+    month_dir = f"{start.strftime('%m')}-{MONTH_NAMES[start.strftime('%m')]}"
+    path = settings.summary_path / start.strftime("%Y") / month_dir / f"{week}-неделя.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    body = (
+        f"---\nperiod: {period_start} — {period_end}\ntype: weekly_summary\n---\n\n"
+        f"# Сводка за неделю {week} ({period_start} — {period_end})\n\n{content}"
+    )
+    return create_file(path, body)

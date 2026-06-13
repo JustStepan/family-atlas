@@ -1,0 +1,18 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>Family Atlas Dashboard</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:2rem;color:#222}
+  nav a{margin-right:1rem}
+  table{border-collapse:collapse;width:100%;margin:1rem 0}
+  th,td{border:1px solid #ddd;padding:.4rem .6rem;text-align:left;vertical-align:top}
+  th{background:#f5f5f5}
+  .raw{white-space:pre-wrap;font-size:.85rem;color:#444;max-width:45ch}
+  .pill{background:#eee;border-radius:6px;padding:.1rem .4rem;margin:.1rem;font-size:.8rem;display:inline-block}
+</style></head><body>
+<nav>
+  <a href="/">Главная</a><a href="/admin">Таблицы (CRUD)</a>
+  <a href="/stats">Статистика</a><a href="/diagnostics">Диагностика</a>
+  <a href="/merge">Слияние персон</a>
+</nav><hr>
+{% block body %}{% endblock %}
+</body></html>

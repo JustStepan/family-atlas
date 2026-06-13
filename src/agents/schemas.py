@@ -129,3 +129,8 @@ def choose_state(thread_type: str) -> tuple[str, BaseModel]:
     if not state:
         raise ValueError('Проверьте тип передаваемого треда')
     return SESSION_PROMPT_MAP[thread_type]
+
+
+class WeeklySummaryOutput(BaseModel):
+    """Текст еженедельной сводки"""
+    content: str = Field(description="Связный текст сводки за неделю, 150-300 слов, без markdown-заголовков")

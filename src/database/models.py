@@ -80,3 +80,13 @@ class Person(Base):
     mentioned_in: Mapped[list | None] = mapped_column(JSON, default=None)
     first_seen: Mapped[str] = mapped_column(String)
     last_seen: Mapped[str] = mapped_column(String)
+
+class WeeklySummary(Base):
+    __tablename__ = 'weekly_summaries'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    period_start: Mapped[str] = mapped_column(String)   # понедельник недели, YYYY-MM-DD
+    period_end: Mapped[str] = mapped_column(String)     # воскресенье недели, YYYY-MM-DD
+    content: Mapped[str] = mapped_column(String)        # текст сводки
+    created_at: Mapped[str] = mapped_column(String)     # когда сгенерирована
+    sent_to_telegram: Mapped[bool | None] = mapped_column(Boolean, default=False)

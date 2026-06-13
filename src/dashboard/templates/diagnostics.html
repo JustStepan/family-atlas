@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block body %}
+<h1>Диагностика извлечения</h1>
+<p>Слева — что пришло агенту, справа — что он извлёк. Ищи: роль в имени, выдуманные факты в summary, мусорные теги.</p>
+<table><tr><th>ID / тред</th><th>Исходник</th><th>Извлечено</th></tr>
+{% for r in rows %}<tr>
+  <td>{{ r.id }}<br>{{ r.thread }}</td>
+  <td class="raw">{{ r.raw_content }}</td>
+  <td><b>{{ r.title }}</b><br><i>{{ r.summary }}</i><br>
+    теги: {% for t in r.tags %}<span class="pill">{{ t }}</span>{% endfor %}<br>
+    люди: {% for p in r.people %}<span class="pill">{{ p.name }} ({{ p.relation }})</span>{% endfor %}
+  </td>
+</tr>{% endfor %}</table>
+{% endblock %}

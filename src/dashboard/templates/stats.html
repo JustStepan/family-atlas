@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block body %}
+<h1>Статистика</h1>
+<p>Заметок: <b>{{ s.total_notes }}</b> · Персон: <b>{{ s.persons_count }}</b> · Сводок: <b>{{ s.summaries_count }}</b></p>
+<p>Связей всего: <b>{{ s.total_related }}</b>, в среднем на заметку: <b>{{ s.avg_related }}</b></p>
+<h2>По тредам</h2><table><tr><th>Тред</th><th>Кол-во</th></tr>
+{% for k,v in s.by_thread.items() %}<tr><td>{{k}}</td><td>{{v}}</td></tr>{% endfor %}</table>
+<h2>По статусам</h2><table><tr><th>Статус</th><th>Кол-во</th></tr>
+{% for k,v in s.by_status.items() %}<tr><td>{{k}}</td><td>{{v}}</td></tr>{% endfor %}</table>
+<h2>Топ тегов (уникальных: {{ s.unique_tags }})</h2>
+<p>{% for t,c in s.top_tags %}<span class="pill">{{t}} · {{c}}</span>{% endfor %}</p>
+<h2>Кандидаты на tag drift (1 упоминание)</h2>
+<p>{% for t in s.drift_candidates %}<span class="pill">{{t}}</span>{% endfor %}</p>
+{% endblock %}

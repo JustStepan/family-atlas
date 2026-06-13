@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from itertools import chain
 from collections import Counter
 
 from sqlalchemy import select
 
-from src.database.engine import get_db
-from src.database.models import AssembledMessages, Person
+from src.database.models import AssembledMessages, Person, WeeklySummary 
 
 
 async def get_or_create(session, model, search_params, create_params=None):
@@ -124,3 +123,48 @@ async def get_summaries(session) -> dict[str, list]:
         "obsidian_path": [row[2] for row in rows],
         "embeddings": [row[3] for row in rows]
     }
+
+
+def last_iso_week_range(today: date) -> tuple[date, date]:
+    """Границы ПРОШЛОЙ календарной недели (пн-вс) относительно сегодня."""
+    this_monday = today - timedelta(days=today.weekday())
+    last_monday = this_monday - timedelta(days=7)
+    last_sunday = this_monday - timedelta(days=1)
+    return last_monday, last_sunday
+
+
+async def get_week_done_msgs(session, start: date, end: date) -> dict[str, list[dict]]:
+    """Done-заметки за неделю, сгруппированные по треду. Отбор по реальной дате (created_at)."""
+    # created_at — строка "YYYY-MM-DD HH:MM:SS", сравнение строк работает лексикографически
+    start_s = f"{start} 00:00:00"
+    end_s = f"{end} 23:59:59"
+    q = await session.execute(
+        select(AssembledMessages)
+        .where(AssembledMessages.status == "done")
+        .where(AssembledMessages.created_at >= start_s)
+        .where(AssembledMessages.created_at <= end_s)
+        .order_by(AssembledMessages.created_at)
+    )
+    rows = q.scalars().all()
+
+    grouped: dict[str, list[dict]] = {"diary": [], "notes": [], "calendar": [], "task": []}
+    for m in rows:
+        grouped.setdefault(m.message_thread, []).append({
+            "title": m.title,
+            "summary": m.summary,
+            "created_at": m.created_at,
+            # для задач нужен статус выполнения
+            "is_done": m.is_done,
+            "event_time": m.event_time,
+        })
+    return grouped
+
+
+async def get_last_summary(session) -> str | None:
+    """Текст последней сводки — для преемственности в новой."""
+    q = await session.execute(
+        select(WeeklySummary.content)
+        .order_by(WeeklySummary.period_end.desc())
+        .limit(1)
+    )
+    return q.scalar_one_or_none()
